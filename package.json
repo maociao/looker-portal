@@ -1,0 +1,19 @@
+{
+    "name": "looker-portal",
+    "version": "1.0.0",
+    "private": true,
+    "workspaces": [
+      "backend",
+      "frontend"
+    ],
+    "scripts": {
+      "start:backend": "cd backend && npm run start",
+      "start:frontend": "cd frontend && npm start",
+      "dev:backend": "cd backend && npm run dev",
+      "dev:frontend": "cd frontend && npm start",
+      "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\""
+    },
+    "devDependencies": {
+      "concurrently": "^8.0.1"
+    }
+  }

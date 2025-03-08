@@ -1,0 +1,63 @@
+# cloudbuild.yaml - Google Cloud Build configuration
+steps:
+  # Build the backend container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/looker-portal-backend:$COMMIT_SHA', './backend']
+
+  # Push the backend container image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/looker-portal-backend:$COMMIT_SHA']
+
+  # Deploy backend container image to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'looker-portal-backend'
+      - '--image=gcr.io/$PROJECT_ID/looker-portal-backend:$COMMIT_SHA'
+      - '--region=us-central1'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--cpu=1'
+      - '--memory=512Mi'
+      - '--min-instances=0'
+      - '--max-instances=5'
+      - '--set-env-vars=PROJECT_ID=$PROJECT_ID,LOOKER_HOST=${_LOOKER_HOST},LOOKER_EMBED_SECRET=${_LOOKER_EMBED_SECRET},JWT_SECRET=${_JWT_SECRET}'
+      
+  # Build the frontend container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/looker-portal-frontend:$COMMIT_SHA', './frontend']
+    
+  # Push the frontend container image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/looker-portal-frontend:$COMMIT_SHA']
+    
+  # Deploy frontend container image to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'looker-portal-frontend'
+      - '--image=gcr.io/$PROJECT_ID/looker-portal-frontend:$COMMIT_SHA'
+      - '--region=us-central1'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--cpu=1'
+      - '--memory=512Mi'
+      - '--min-instances=0'
+      - '--max-instances=5'
+      - '--set-env-vars=REACT_APP_API_URL=${_BACKEND_URL},REACT_APP_LOOKER_HOST=${_LOOKER_HOST}'
+      
+# Store the built images in Container Registry
+images:
+  - 'gcr.io/$PROJECT_ID/looker-portal-backend:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/looker-portal-frontend:$COMMIT_SHA'
+
+# Substitution variables to be defined in the build trigger
+substitutions:
+  _LOOKER_HOST: 'your-looker-instance.cloud.looker.com'
+  _BACKEND_URL: 'https://looker-portal-backend-xxxx-uc.a.run.app'
+  _LOOKER_EMBED_SECRET: 'SECRET_TO_BE_DEFINED'
+  _JWT_SECRET: 'SECRET_TO_BE_DEFINED'

@@ -1,0 +1,38 @@
+# Database Structure for Firestore
+
+# Collection: users
+users:
+  - id: string (auto-generated)
+    email: string
+    firstName: string
+    lastName: string
+    passwordHash: string
+    role: string (enum: 'admin', 'user')
+    businessPartnerId: string (reference to business_partners collection)
+    createdAt: timestamp
+    lastLogin: timestamp (nullable)
+
+# Collection: businessPartners
+businessPartners:
+  - id: string (auto-generated)
+    name: string
+    contactEmail: string
+    assignedDashboards: array of strings (Looker dashboard IDs)
+    createdAt: timestamp
+
+# Security Rules
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // User can read their own data
+    match /users/{userId} {
+      allow read: if request.auth.uid == userId;
+      allow write: if false; // Only backend can write user data
+    }
+    
+    // Business partner data can only be read/written by admins
+    match /businessPartners/{partnerId} {
+      allow read: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow write: if false; // Only backend can write business partner data
+    }
+  }
+}
