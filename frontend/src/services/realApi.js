@@ -23,9 +23,14 @@ export const loginUser = async (email, password) => {
 };
 
 // Looker Embedding
-export const getLookerEmbedUrl = async (token) => {
+export const getLookerEmbedUrl = async (token, dashboardId) => {
   try {
-    const response = await api.get('/api/looker/embed', {
+    let url = '/api/looker/embed';
+    if (dashboardId) {
+      url += `?dashboardId=${dashboardId}`;
+    }
+    
+    const response = await api.get(url, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -34,6 +39,22 @@ export const getLookerEmbedUrl = async (token) => {
   } catch (error) {
     throw new Error(
       error.response?.data?.message || 'Failed to get dashboard URL'
+    );
+  }
+};
+
+// Get user's accessible dashboards
+export const getUserDashboards = async (token) => {
+  try {
+    const response = await api.get('/api/looker/user-dashboards', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(
+      error.response?.data?.message || 'Failed to fetch user dashboards'
     );
   }
 };

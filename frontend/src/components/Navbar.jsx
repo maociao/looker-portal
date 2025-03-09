@@ -21,6 +21,12 @@ const Navbar = () => {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
 
+  // Determine the home route based on user role
+  const getHomeRoute = () => {
+    if (!user) return '/login';
+    return user.role === 'admin' ? '/admin' : '/dashboard';
+  };
+
   const handleLogout = () => {
     logout();
     navigate('/login');
@@ -34,10 +40,10 @@ const Navbar = () => {
     <nav className="bg-white border-b border-gray-200">
       <div className="container mx-auto px-4 py-3">
         <div className="flex justify-between items-center">
-          {/* Logo/Brand */}
+          {/* Logo/Brand - Links to role-specific home */}
           <div>
-            <Link to="/" className="text-lg font-bold text-gray-800 hover:text-primary">
-              Business Partner Portal
+            <Link to={getHomeRoute()} className="text-lg font-bold text-gray-800 hover:text-primary">
+              Looker Portal
             </Link>
           </div>
 

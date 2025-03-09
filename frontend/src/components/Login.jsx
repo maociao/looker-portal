@@ -18,9 +18,10 @@ const Login = () => {
   const { user, setUser, setToken } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  // If already logged in, redirect to dashboard
+  // If already logged in, redirect to appropriate page based on role
   if (user) {
-    return <Navigate to="/dashboard" replace />;
+    const redirectPath = user.role === 'admin' ? '/admin' : '/dashboard';
+    return <Navigate to={redirectPath} replace />;
   }
 
   const handleSubmit = async (e) => {
@@ -38,7 +39,9 @@ const Login = () => {
         setToken(response.token);
         setUser(response.user);
         
-        navigate('/dashboard');
+        // Navigate based on user role
+        const redirectPath = response.user.role === 'admin' ? '/admin' : '/dashboard';
+        navigate(redirectPath);
       } else {
         setError('Invalid response from server');
       }
@@ -53,7 +56,7 @@ const Login = () => {
     <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold">Business Partner Portal</h1>
+          <h1 className="text-3xl font-bold">Looker Portal</h1>
         </div>
         
         {error && (

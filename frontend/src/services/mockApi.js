@@ -30,7 +30,7 @@ const mockPartners = [
     id: '1',
     name: 'Test Company',
     contactEmail: 'contact@testcompany.com',
-    assignedDashboards: ['1', '2'],
+    assignedDashboards: ['1', '2', '3'],
     createdAt: new Date().toISOString()
   },
   {
@@ -47,19 +47,22 @@ const mockDashboards = [
     id: '1',
     title: 'Sales Overview Dashboard',
     description: 'Monthly sales performance',
-    user_id: 'admin'
+    user_id: 'admin',
+    dashboardType: 'sales'
   },
   {
     id: '2',
     title: 'Marketing Performance',
     description: 'Campaign effectiveness metrics',
-    user_id: 'admin'
+    user_id: 'admin',
+    dashboardType: 'marketing'
   },
   {
     id: '3',
     title: 'Customer Analytics',
     description: 'Customer behavior and segmentation',
-    user_id: 'admin'
+    user_id: 'admin',
+    dashboardType: 'customer'
   }
 ];
 
@@ -70,6 +73,9 @@ export const loginUser = async (email, password) => {
       const user = mockUsers.find(u => u.email === email);
       
       if (user && (password === 'password' || password === 'admin')) {
+        // Find the business partner to get their assigned dashboards
+        const partner = mockPartners.find(p => p.id === user.businessPartnerId);
+        
         resolve({
           token: 'mock-jwt-token-' + uuidv4(),
           user: {
@@ -79,7 +85,9 @@ export const loginUser = async (email, password) => {
             lastName: user.lastName,
             role: user.role,
             businessPartnerId: user.businessPartnerId,
-            businessPartnerName: user.businessPartnerName
+            businessPartnerName: user.businessPartnerName,
+            // Include assigned dashboards in the user object for convenience
+            assignedDashboards: partner?.assignedDashboards || []
           }
         });
       } else {
@@ -90,12 +98,32 @@ export const loginUser = async (email, password) => {
 };
 
 // Looker Embedding
-export const getLookerEmbedUrl = async (token) => {
+export const getLookerEmbedUrl = async (token, dashboardId) => {
   return new Promise((resolve) => {
     setTimeout(() => {
+      // Include the dashboardId in the mock URL if provided
+      const dashboardIdToUse = dashboardId || '1';
       resolve({
-        embeddedUrl: 'https://demo.looker.com/embed/dashboards/1?session_length=3600'
+        embeddedUrl: `https://demo.looker.com/embed/dashboards/${dashboardIdToUse}?session_length=3600`
       });
+    }, 800);
+  });
+};
+
+// Get accessible dashboards for the current user
+export const getUserDashboards = async (token) => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      // Parse the token to get the user info (in a real app, this would be done on the server)
+      // In our mock, we'll just return all dashboards
+      const availableDashboards = mockDashboards.map(dashboard => ({
+        id: dashboard.id,
+        title: dashboard.title,
+        description: dashboard.description,
+        dashboardType: dashboard.dashboardType
+      }));
+      
+      resolve({ dashboards: availableDashboards });
     }, 800);
   });
 };

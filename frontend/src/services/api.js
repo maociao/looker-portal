@@ -8,6 +8,7 @@ const USE_MOCK_LOOKER = import.meta.env.VITE_USE_MOCK_LOOKER === 'true';
 // Export all API functions, using either real or mock implementation
 export const loginUser = USE_MOCK_API ? mockApi.loginUser : realApi.loginUser;
 export const getLookerEmbedUrl = USE_MOCK_LOOKER ? mockApi.getLookerEmbedUrl : realApi.getLookerEmbedUrl;
+export const getUserDashboards = USE_MOCK_LOOKER ? mockApi.getUserDashboards : realApi.getUserDashboards;
 export const getUsers = USE_MOCK_API ? mockApi.getUsers : realApi.getUsers;
 export const createUser = USE_MOCK_API ? mockApi.createUser : realApi.createUser;
 export const updateUser = USE_MOCK_API ? mockApi.updateUser : realApi.updateUser;

@@ -10,7 +10,18 @@ import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
 
 // Context
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, AuthContext } from './context/AuthContext';
+
+// Root redirect component that uses the auth context
+const RootRedirect = () => {
+  const { user } = React.useContext(AuthContext);
+  
+  // Redirect based on user role
+  if (!user) return <Navigate to="/login" replace />;
+  return user.role === 'admin' ? 
+    <Navigate to="/admin" replace /> : 
+    <Navigate to="/dashboard" replace />;
+};
 
 function App() {
   return (
@@ -31,7 +42,7 @@ function App() {
                   <AdminPanel />
                 </ProtectedRoute>
               } />
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/" element={<RootRedirect />} />
             </Routes>
           </main>
         </Router>

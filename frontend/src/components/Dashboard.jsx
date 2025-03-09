@@ -1,13 +1,15 @@
 import React, { useEffect, useState, useContext, useRef } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import { getLookerEmbedUrl } from '../services/api';
+import { getLookerEmbedUrl, getUserDashboards } from '../services/api';
 import { LookerEmbedSDK } from '@looker/embed-sdk';
 import MockDashboard from './MockDashboard';
+import DashboardSelector from './DashboardSelector';
 
 // shadcn components
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // Check if we're using mock Looker API
 const USE_MOCK_LOOKER = import.meta.env.VITE_USE_MOCK_LOOKER === 'true';
@@ -24,10 +26,53 @@ const Dashboard = () => {
   const dashboardRef = useRef(null);
   const dashboardContainerRef = useRef(null);
   const [selectedFormat, setSelectedFormat] = useState('');
+  const [userDashboards, setUserDashboards] = useState([]);
+  const [selectedDashboardId, setSelectedDashboardId] = useState(null);
+  const [showDashboardSelector, setShowDashboardSelector] = useState(true);
   
+  // Fetch available dashboards for the user
   useEffect(() => {
-    // If using mock API, return early after a delay to simulate loading
+    const fetchUserDashboards = async () => {
+      try {
+        setError('');
+        
+        // Get dashboards user has access to
+        const dashboardsData = await getUserDashboards(token);
+        if (dashboardsData.dashboards && dashboardsData.dashboards.length > 0) {
+          setUserDashboards(dashboardsData.dashboards);
+          
+          // If there's only one dashboard, select it automatically
+          if (dashboardsData.dashboards.length === 1) {
+            setSelectedDashboardId(dashboardsData.dashboards[0].id);
+            setShowDashboardSelector(false);
+          }
+        } else {
+          setError('No dashboards available for your account');
+        }
+      } catch (err) {
+        console.error('Dashboard fetch error:', err);
+        setError(err.message || 'Failed to load available dashboards');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    if (user && token) {
+      fetchUserDashboards();
+    }
+  }, [user, token]);
+  
+  // Load selected dashboard
+  useEffect(() => {
+    // If no dashboard selected, just show the selector
+    if (!selectedDashboardId) {
+      setIsLoading(false);
+      return;
+    }
+    
+    // If using mock API, just update loading state
     if (USE_MOCK_LOOKER) {
+      setIsLoading(true);
       const timer = setTimeout(() => {
         setIsLoading(false);
       }, 1000);
@@ -39,24 +84,21 @@ const Dashboard = () => {
         setIsLoading(true);
         setError('');
         
+        // Clean up any previous dashboard
+        if (dashboardRef.current) {
+          dashboardRef.current.disconnect();
+          dashboardRef.current = null;
+        }
+        
         // Get signed URL for embedding
-        const embedData = await getLookerEmbedUrl(token);
+        const embedData = await getLookerEmbedUrl(token, selectedDashboardId);
         
         if (!embedData.embeddedUrl) {
           throw new Error('Failed to get dashboard URL');
         }
         
-        // Parse the dashboard ID from the URL
-        const urlParts = embedData.embeddedUrl.split('/');
-        const dashboardIdIndex = urlParts.findIndex(part => part === 'dashboards') + 1;
-        const dashboardId = urlParts[dashboardIdIndex];
-        
-        if (!dashboardId) {
-          throw new Error('Invalid dashboard URL');
-        }
-        
         // Build the dashboard with Looker Embed SDK
-        LookerEmbedSDK.createDashboardWithId(dashboardId)
+        LookerEmbedSDK.createDashboardWithId(selectedDashboardId)
           .withNext()
           .appendTo(dashboardContainerRef.current)
           .withTheme('minimal')
@@ -103,7 +145,7 @@ const Dashboard = () => {
         dashboardRef.current.disconnect();
       }
     };
-  }, [user, token]);
+  }, [user, token, selectedDashboardId]);
   
   // Handle download
   const handleDownload = () => {
@@ -136,6 +178,18 @@ const Dashboard = () => {
     }
   };
   
+  const handleSelectDashboard = (dashboardId) => {
+    setSelectedDashboardId(dashboardId);
+    setShowDashboardSelector(false);
+  };
+  
+  const handleBackToSelector = () => {
+    setShowDashboardSelector(true);
+  };
+  
+  // Find the selected dashboard title
+  const selectedDashboard = userDashboards.find(d => d.id === selectedDashboardId);
+  
   return (
     <div className="space-y-6 p-4">
       <div>
@@ -143,53 +197,99 @@ const Dashboard = () => {
         <p className="text-gray-600 mt-1">Business Partner: {user?.businessPartnerName}</p>
       </div>
       
-      {/* Download options */}
-      <div className="flex flex-wrap gap-3">
-        <Button
-          variant={selectedFormat === 'excel' ? 'default' : 'outline'}
-          onClick={() => setSelectedFormat('excel')}
-          className={selectedFormat === 'excel' ? 'bg-green-600 hover:bg-green-700' : ''}
-        >
-          Excel
-        </Button>
-        <Button
-          variant={selectedFormat === 'pdf' ? 'default' : 'outline'}
-          onClick={() => setSelectedFormat('pdf')}
-          className={selectedFormat === 'pdf' ? 'bg-red-600 hover:bg-red-700' : ''}
-        >
-          PDF
-        </Button>
-        <Button
-          disabled={!selectedFormat}
-          onClick={handleDownload}
-        >
-          Download
-        </Button>
-      </div>
-      
-      {isLoading && (
-        <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-        </div>
-      )}
-      
-      {error && (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-      
-      {/* Use MockDashboard component when in mock mode */}
-      {USE_MOCK_LOOKER ? (
-        <MockDashboard />
+      {/* Dashboard selector view */}
+      {showDashboardSelector ? (
+        <>
+          <h2 className="text-xl font-semibold">Available Dashboards</h2>
+          
+          {isLoading ? (
+            <div className="flex items-center justify-center h-40">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            </div>
+          ) : userDashboards.length > 0 ? (
+            <DashboardSelector 
+              dashboards={userDashboards} 
+              onSelectDashboard={handleSelectDashboard}
+              className="mt-6"
+            />
+          ) : (
+            <Alert className="mt-6">
+              <AlertDescription>
+                No dashboards have been assigned to your account. Please contact your administrator.
+              </AlertDescription>
+            </Alert>
+          )}
+        </>
       ) : (
-        <div
-          ref={dashboardContainerRef}
-          className="h-[800px] w-full border border-gray-200 rounded-md"
-          style={{ 
-            visibility: isLoading ? 'hidden' : 'visible' 
-          }}
-        />
+        /* Dashboard view */
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center">
+              <Button 
+                variant="outline" 
+                onClick={handleBackToSelector}
+                className="mr-4"
+              >
+                Back to Dashboards
+              </Button>
+              
+              <h2 className="text-xl font-semibold">
+                {selectedDashboard?.title || 'Dashboard'}
+              </h2>
+            </div>
+            
+            {/* Download options */}
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant={selectedFormat === 'excel' ? 'default' : 'outline'}
+                onClick={() => setSelectedFormat('excel')}
+                className={selectedFormat === 'excel' ? 'bg-green-600 hover:bg-green-700' : ''}
+              >
+                Excel
+              </Button>
+              <Button
+                variant={selectedFormat === 'pdf' ? 'default' : 'outline'}
+                onClick={() => setSelectedFormat('pdf')}
+                className={selectedFormat === 'pdf' ? 'bg-red-600 hover:bg-red-700' : ''}
+              >
+                PDF
+              </Button>
+              <Button
+                disabled={!selectedFormat}
+                onClick={handleDownload}
+              >
+                Download
+              </Button>
+            </div>
+          </div>
+          
+          {isLoading && (
+            <div className="flex items-center justify-center h-96">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            </div>
+          )}
+          
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          
+          {/* Use MockDashboard component when in mock mode */}
+          {USE_MOCK_LOOKER ? (
+            <div className={isLoading ? 'hidden' : ''}>
+              <MockDashboard dashboardId={selectedDashboardId} />
+            </div>
+          ) : (
+            <div
+              ref={dashboardContainerRef}
+              className="h-[800px] w-full border border-gray-200 rounded-md"
+              style={{ 
+                visibility: isLoading ? 'hidden' : 'visible' 
+              }}
+            />
+          )}
+        </>
       )}
     </div>
   );
