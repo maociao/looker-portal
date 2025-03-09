@@ -1,49 +1,48 @@
-import React, { useState, useContext, useRef } from 'react';
-import {
-  Box,
-  Button,
-  FormControl,
-  FormLabel,
-  Input,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalFooter,
-  ModalBody,
-  ModalCloseButton,
-  useDisclosure,
-  Stack,
-  Heading,
-  useToast,
-  Text,
-  HStack,
-  IconButton,
-  AlertDialog,
-  AlertDialogBody,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogContent,
-  AlertDialogOverlay,
-  FormHelperText,
-  Checkbox,
-  CheckboxGroup,
-  VStack
-} from '@chakra-ui/react';
-import { AddIcon, EditIcon, DeleteIcon } from '@chakra-ui/icons';
+import React, { useState, useContext, useEffect } from 'react';
 import { AuthContext } from '../../context/AuthContext';
 import { createBusinessPartner, updateBusinessPartner, deleteBusinessPartner } from '../../services/api';
 import { getLookerDashboards } from '../../services/lookerApi';
 
+// shadcn components
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useToast } from "@/components/ui/use-toast";
+import { ScrollArea } from "@/components/ui/scroll-area";
+
+// Lucide icons
+import { Plus, Pencil, Trash } from 'lucide-react';
+
 const BusinessPartnerManagement = ({ partners, isLoading, refreshData }) => {
   const { token } = useContext(AuthContext);
-  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedPartner, setSelectedPartner] = useState(null);
   const [availableDashboards, setAvailableDashboards] = useState([]);
   const [formData, setFormData] = useState({
@@ -51,12 +50,11 @@ const BusinessPartnerManagement = ({ partners, isLoading, refreshData }) => {
     contactEmail: '',
     assignedDashboards: []
   });
-  const toast = useToast();
+  const { toast } = useToast();
   
   // Delete alert state
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [partnerToDelete, setPartnerToDelete] = useState(null);
-  const cancelRef = useRef();
   
   const resetForm = () => {
     setFormData({
@@ -73,15 +71,14 @@ const BusinessPartnerManagement = ({ partners, isLoading, refreshData }) => {
       setAvailableDashboards(dashboards);
     } catch (error) {
       toast({
-        title: 'Error fetching dashboards',
-        description: error.message,
-        status: 'error',
-        duration: 5000
+        title: 'Error',
+        description: 'Failed to fetch dashboards',
+        variant: 'destructive',
       });
     }
   };
   
-  const handleOpenModal = async (partner = null) => {
+  const handleOpenDialog = async (partner = null) => {
     await fetchAvailableDashboards();
     
     if (partner) {
@@ -94,42 +91,36 @@ const BusinessPartnerManagement = ({ partners, isLoading, refreshData }) => {
     } else {
       resetForm();
     }
-    onOpen();
+    setIsDialogOpen(true);
   };
   
-  const handleCloseModal = () => {
+  const handleCloseDialog = () => {
     resetForm();
-    onClose();
+    setIsDialogOpen(false);
   };
   
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData({
-      ...formData,
+    setFormData(prev => ({
+      ...prev,
       [name]: value,
-    });
+    }));
   };
   
   const handleDashboardChange = (dashboardId, isChecked) => {
-    const currentDashboards = [...formData.assignedDashboards];
-    
     if (isChecked) {
       // Add dashboard if not already included
-      if (!currentDashboards.includes(dashboardId)) {
-        currentDashboards.push(dashboardId);
-      }
+      setFormData(prev => ({
+        ...prev,
+        assignedDashboards: [...prev.assignedDashboards, dashboardId]
+      }));
     } else {
       // Remove dashboard
-      const index = currentDashboards.indexOf(dashboardId);
-      if (index > -1) {
-        currentDashboards.splice(index, 1);
-      }
+      setFormData(prev => ({
+        ...prev,
+        assignedDashboards: prev.assignedDashboards.filter(id => id !== dashboardId)
+      }));
     }
-    
-    setFormData({
-      ...formData,
-      assignedDashboards: currentDashboards
-    });
   };
   
   const handleSubmit = async () => {
@@ -138,28 +129,25 @@ const BusinessPartnerManagement = ({ partners, isLoading, refreshData }) => {
         // Update existing partner
         await updateBusinessPartner(selectedPartner.id, formData, token);
         toast({
-          title: 'Business partner updated',
-          status: 'success',
-          duration: 3000,
+          title: 'Success',
+          description: 'Business partner updated successfully',
         });
       } else {
         // Create new partner
         await createBusinessPartner(formData, token);
         toast({
-          title: 'Business partner created',
-          status: 'success',
-          duration: 3000,
+          title: 'Success',
+          description: 'Business partner created successfully',
         });
       }
       
-      handleCloseModal();
+      handleCloseDialog();
       refreshData();
     } catch (error) {
       toast({
         title: 'Error',
-        description: error.message,
-        status: 'error',
-        duration: 5000,
+        description: error.message || 'An error occurred',
+        variant: 'destructive',
       });
     }
   };
@@ -175,166 +163,169 @@ const BusinessPartnerManagement = ({ partners, isLoading, refreshData }) => {
       setIsDeleteAlertOpen(false);
       refreshData();
       toast({
-        title: 'Business partner deleted',
-        status: 'success',
-        duration: 3000,
+        title: 'Success',
+        description: 'Business partner deleted successfully',
       });
     } catch (error) {
       toast({
         title: 'Error',
-        description: error.message,
-        status: 'error',
-        duration: 5000,
+        description: error.message || 'An error occurred',
+        variant: 'destructive',
       });
     }
   };
   
   return (
-    <Box>
-      <HStack justify="space-between" mb={5}>
-        <Heading size="md">Business Partner Management</Heading>
-        <Button
-          leftIcon={<AddIcon />}
-          colorScheme="blue"
-          onClick={() => handleOpenModal()}
-        >
-          Add Business Partner
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold">Business Partner Management</h2>
+        <Button onClick={() => handleOpenDialog()} className="flex items-center gap-1">
+          <Plus size={16} /> Add Business Partner
         </Button>
-      </HStack>
+      </div>
       
       {partners.length === 0 ? (
-        <Text>No business partners found</Text>
+        <p className="text-sm text-gray-500">No business partners found</p>
       ) : (
-        <Table variant="simple">
-          <Thead>
-            <Tr>
-              <Th>Name</Th>
-              <Th>Contact Email</Th>
-              <Th>Assigned Dashboards</Th>
-              <Th>Actions</Th>
-            </Tr>
-          </Thead>
-          <Tbody>
-            {partners.map((partner) => (
-              <Tr key={partner.id}>
-                <Td>{partner.name}</Td>
-                <Td>{partner.contactEmail}</Td>
-                <Td>{partner.assignedDashboards?.length || 0}</Td>
-                <Td>
-                  <HStack spacing={2}>
-                    <IconButton
-                      icon={<EditIcon />}
-                      size="sm"
-                      aria-label="Edit partner"
-                      onClick={() => handleOpenModal(partner)}
-                    />
-                    <IconButton
-                      icon={<DeleteIcon />}
-                      size="sm"
-                      colorScheme="red"
-                      aria-label="Delete partner"
-                      onClick={() => handleDeleteClick(partner)}
-                    />
-                  </HStack>
-                </Td>
-              </Tr>
-            ))}
-          </Tbody>
-        </Table>
+        <div className="border rounded-md">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Contact Email</TableHead>
+                <TableHead>Assigned Dashboards</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {partners.map((partner) => (
+                <TableRow key={partner.id}>
+                  <TableCell>{partner.name}</TableCell>
+                  <TableCell>{partner.contactEmail}</TableCell>
+                  <TableCell>{partner.assignedDashboards?.length || 0}</TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={() => handleOpenDialog(partner)}
+                      >
+                        <Pencil size={16} />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => handleDeleteClick(partner)}
+                      >
+                        <Trash size={16} />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       )}
       
-      {/* Business Partner Form Modal */}
-      <Modal isOpen={isOpen} onClose={handleCloseModal} size="lg">
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>
-            {selectedPartner ? 'Edit Business Partner' : 'Add New Business Partner'}
-          </ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <Stack spacing={4}>
-              <FormControl id="name" isRequired>
-                <FormLabel>Name</FormLabel>
-                <Input
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                />
-              </FormControl>
-              
-              <FormControl id="contactEmail" isRequired>
-                <FormLabel>Contact Email</FormLabel>
-                <Input
-                  name="contactEmail"
-                  type="email"
-                  value={formData.contactEmail}
-                  onChange={handleInputChange}
-                />
-              </FormControl>
-              
-              <FormControl id="assignedDashboards">
-                <FormLabel>Assigned Dashboards</FormLabel>
-                <FormHelperText mb={2}>
-                  Select the dashboards this business partner can access
-                </FormHelperText>
-                
-                <VStack align="start" spacing={2} maxHeight="200px" overflowY="auto" p={2} borderWidth={1} borderRadius="md">
-                  {availableDashboards.map(dashboard => (
-                    <Checkbox 
-                      key={dashboard.id}
-                      isChecked={formData.assignedDashboards.includes(dashboard.id)}
-                      onChange={(e) => handleDashboardChange(dashboard.id, e.target.checked)}
-                    >
-                      {dashboard.title}
-                    </Checkbox>
-                  ))}
-                  {availableDashboards.length === 0 && (
-                    <Text>No dashboards available</Text>
-                  )}
-                </VStack>
-              </FormControl>
-            </Stack>
-          </ModalBody>
+      {/* Partner Form Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedPartner ? 'Edit Business Partner' : 'Add New Business Partner'}
+            </DialogTitle>
+            <DialogDescription>
+              Fill in the form below to {selectedPartner ? 'update' : 'create'} a business partner.
+            </DialogDescription>
+          </DialogHeader>
           
-          <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={handleCloseModal}>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Name</Label>
+              <Input
+                id="name"
+                name="name"
+                value={formData.name}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="contactEmail">Contact Email</Label>
+              <Input
+                id="contactEmail"
+                name="contactEmail"
+                type="email"
+                value={formData.contactEmail}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Assigned Dashboards</Label>
+              <div className="text-sm text-gray-500 mb-2">
+                Select the dashboards this business partner can access
+              </div>
+              
+              <ScrollArea className="h-48 border rounded-md p-2">
+                <div className="space-y-2">
+                  {availableDashboards.length === 0 ? (
+                    <p className="text-sm text-gray-500">No dashboards available</p>
+                  ) : (
+                    availableDashboards.map(dashboard => (
+                      <div key={dashboard.id} className="flex items-center space-x-2">
+                        <Checkbox 
+                          id={`dashboard-${dashboard.id}`}
+                          checked={formData.assignedDashboards.includes(dashboard.id)}
+                          onCheckedChange={(checked) => handleDashboardChange(dashboard.id, checked)}
+                        />
+                        <Label 
+                          htmlFor={`dashboard-${dashboard.id}`} 
+                          className="text-sm font-normal"
+                        >
+                          {dashboard.title}
+                        </Label>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </ScrollArea>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCloseDialog}>
               Cancel
             </Button>
-            <Button colorScheme="blue" onClick={handleSubmit}>
+            <Button onClick={handleSubmit}>
               {selectedPartner ? 'Update' : 'Create'}
             </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       
       {/* Delete Confirmation Dialog */}
-      <AlertDialog
-        isOpen={isDeleteAlertOpen}
-        leastDestructiveRef={cancelRef}
-        onClose={() => setIsDeleteAlertOpen(false)}
-      >
-        <AlertDialogOverlay>
-          <AlertDialogContent>
-            <AlertDialogHeader fontSize="lg" fontWeight="bold">
-              Delete Business Partner
-            </AlertDialogHeader>
-            
-            <AlertDialogBody>
+      <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Business Partner</AlertDialogTitle>
+            <AlertDialogDescription>
               Are you sure you want to delete {partnerToDelete?.name}? This action cannot be undone and will affect all users associated with this business partner.
-            </AlertDialogBody>
-            
-            <AlertDialogFooter>
-              <Button ref={cancelRef} onClick={() => setIsDeleteAlertOpen(false)}>
-                Cancel
-              </Button>
-              <Button colorScheme="red" onClick={handleDeleteConfirm} ml={3}>
-                Delete
-              </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialogOverlay>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-red-600 hover:bg-red-700">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
       </AlertDialog>
-    </Box>
+    </div>
   );
 };
 

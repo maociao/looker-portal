@@ -1,161 +1,156 @@
-import React, { useContext } from 'react';
-import { Link as RouterLink, useHistory } from 'react-router-dom';
-import {
-  Box,
-  Flex,
-  Text,
-  Button,
-  Stack,
-  Link,
-  Menu,
-  MenuButton,
-  MenuList,
-  MenuItem,
-  MenuDivider,
-  useColorModeValue,
-  useDisclosure,
-  HStack,
-  IconButton,
-} from '@chakra-ui/react';
-import { HamburgerIcon, CloseIcon, ChevronDownIcon } from '@chakra-ui/icons';
+import React, { useContext, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 
+// shadcn components
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+// Lucide icons
+import { Menu, X, ChevronDown } from 'lucide-react';
+
 const Navbar = () => {
-  const { isOpen, onToggle } = useDisclosure();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user, logout } = useContext(AuthContext);
-  const history = useHistory();
+  const navigate = useNavigate();
 
   const handleLogout = () => {
     logout();
-    history.push('/login');
+    navigate('/login');
+  };
+
+  const toggleMenu = () => {
+    setIsMenuOpen(!isMenuOpen);
   };
 
   return (
-    <Box>
-      <Flex
-        bg={useColorModeValue('white', 'gray.800')}
-        color={useColorModeValue('gray.600', 'white')}
-        minH={'60px'}
-        py={{ base: 2 }}
-        px={{ base: 4, md: 6 }}
-        borderBottom={1}
-        borderStyle={'solid'}
-        borderColor={useColorModeValue('gray.200', 'gray.900')}
-        align={'center'}
-        justify={'space-between'}
-      >
-        <Flex
-          flex={{ base: 1, md: 'auto' }}
-          ml={{ base: -2 }}
-          display={{ base: 'flex', md: 'none' }}
-        >
-          <IconButton
-            onClick={onToggle}
-            icon={isOpen ? <CloseIcon w={3} h={3} /> : <HamburgerIcon w={5} h={5} />}
-            variant={'ghost'}
-            aria-label={'Toggle Navigation'}
-          />
-        </Flex>
-        
-        <Flex flex={{ base: 1 }} justify={{ base: 'center', md: 'start' }}>
-          <Link
-            as={RouterLink}
-            to="/"
-            textAlign={useColorModeValue('left', 'center')}
-            fontFamily={'heading'}
-            fontWeight={'bold'}
-            color={useColorModeValue('gray.800', 'white')}
-            _hover={{
-              textDecoration: 'none',
-            }}
-          >
-            Business Partner Portal
-          </Link>
-        </Flex>
+    <nav className="bg-white border-b border-gray-200">
+      <div className="container mx-auto px-4 py-3">
+        <div className="flex justify-between items-center">
+          {/* Logo/Brand */}
+          <div>
+            <Link to="/" className="text-lg font-bold text-gray-800 hover:text-primary">
+              Business Partner Portal
+            </Link>
+          </div>
 
-        <Stack
-          flex={{ base: 1, md: 0 }}
-          justify={'flex-end'}
-          direction={'row'}
-          spacing={6}
-          display={{ base: isOpen ? 'flex' : 'none', md: 'flex' }}
-        >
-          {user ? (
-            <HStack spacing={4}>
-              {user.role === 'admin' && (
-                <Link
-                  as={RouterLink}
-                  to="/admin"
-                  fontSize={'sm'}
-                  fontWeight={500}
-                  variant={'link'}
-                  _hover={{
-                    textDecoration: 'none',
-                    color: 'blue.500',
-                  }}
-                >
-                  Admin Panel
-                </Link>
-              )}
-              
-              <Link
-                as={RouterLink}
-                to="/dashboard"
-                fontSize={'sm'}
-                fontWeight={500}
-                variant={'link'}
-                _hover={{
-                  textDecoration: 'none',
-                  color: 'blue.500',
-                }}
-              >
-                Dashboard
-              </Link>
-              
-              <Menu>
-                <MenuButton
-                  as={Button}
-                  rounded={'full'}
-                  variant={'link'}
-                  cursor={'pointer'}
-                  rightIcon={<ChevronDownIcon />}
-                >
-                  {`${user.firstName} ${user.lastName}`}
-                </MenuButton>
-                <MenuList>
-                  <MenuItem isDisabled>
-                    <Text fontSize="xs" color="gray.600">
-                      {user.email}
-                    </Text>
-                  </MenuItem>
-                  <MenuItem isDisabled>
-                    <Text fontSize="xs" color="gray.600">
-                      {user.businessPartnerName}
-                    </Text>
-                  </MenuItem>
-                  <MenuDivider />
-                  <MenuItem onClick={handleLogout}>Logout</MenuItem>
-                </MenuList>
-              </Menu>
-            </HStack>
-          ) : (
-            <Button
-              as={RouterLink}
-              to="/login"
-              fontSize={'sm'}
-              fontWeight={600}
-              color={'white'}
-              bg={'blue.400'}
-              _hover={{
-                bg: 'blue.500',
-              }}
-            >
-              Sign In
+          {/* Mobile menu button */}
+          <div className="md:hidden">
+            <Button variant="ghost" size="icon" onClick={toggleMenu}>
+              {isMenuOpen ? <X size={20} /> : <Menu size={20} />}
             </Button>
-          )}
-        </Stack>
-      </Flex>
-    </Box>
+          </div>
+
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center space-x-4">
+            {user ? (
+              <>
+                {user.role === 'admin' && (
+                  <Link 
+                    to="/admin"
+                    className="text-sm font-medium text-gray-600 hover:text-primary"
+                  >
+                    Admin Panel
+                  </Link>
+                )}
+                
+                <Link 
+                  to="/dashboard"
+                  className="text-sm font-medium text-gray-600 hover:text-primary"
+                >
+                  Dashboard
+                </Link>
+                
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="flex items-center gap-1">
+                      {`${user.firstName} ${user.lastName}`}
+                      <ChevronDown size={16} />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel className="text-xs text-gray-500">
+                      {user.email}
+                    </DropdownMenuLabel>
+                    <DropdownMenuLabel className="text-xs text-gray-500">
+                      {user.businessPartnerName}
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout}>
+                      Logout
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
+            ) : (
+              <Button asChild>
+                <Link to="/login">Sign In</Link>
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Mobile Navigation */}
+        {isMenuOpen && (
+          <div className="md:hidden pt-4 pb-3 border-t border-gray-200 mt-3">
+            <div className="flex flex-col space-y-3">
+              {user ? (
+                <>
+                  {user.role === 'admin' && (
+                    <Link 
+                      to="/admin"
+                      className="px-2 py-1 text-sm font-medium text-gray-600 hover:text-primary"
+                      onClick={toggleMenu}
+                    >
+                      Admin Panel
+                    </Link>
+                  )}
+                  
+                  <Link 
+                    to="/dashboard"
+                    className="px-2 py-1 text-sm font-medium text-gray-600 hover:text-primary"
+                    onClick={toggleMenu}
+                  >
+                    Dashboard
+                  </Link>
+                  
+                  <div className="px-2 py-1 text-sm font-medium text-gray-600">
+                    {`${user.firstName} ${user.lastName}`}
+                  </div>
+                  
+                  <div className="px-2 py-1 text-xs text-gray-500">
+                    {user.email}
+                  </div>
+                  
+                  <div className="px-2 py-1 text-xs text-gray-500">
+                    {user.businessPartnerName}
+                  </div>
+                  
+                  <Button 
+                    variant="ghost" 
+                    className="justify-start px-2"
+                    onClick={handleLogout}
+                  >
+                    Logout
+                  </Button>
+                </>
+              ) : (
+                <Button asChild onClick={toggleMenu}>
+                  <Link to="/login">Sign In</Link>
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </nav>
   );
 };
 

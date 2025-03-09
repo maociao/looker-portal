@@ -1,8 +1,12 @@
 import React, { useEffect, useState, useContext, useRef } from 'react';
-import { Box, Heading, Text, Spinner, Center, Button, HStack } from '@chakra-ui/react';
 import { AuthContext } from '../context/AuthContext';
 import { getLookerEmbedUrl } from '../services/api';
 import { LookerEmbedSDK } from '@looker/embed-sdk';
+
+// shadcn components
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 // Initialize Looker Embed SDK
 LookerEmbedSDK.init(import.meta.env.VITE_LOOKER_HOST);
@@ -99,55 +103,56 @@ const Dashboard = () => {
   };
   
   return (
-    <Box p={5}>
-      <Heading mb={5}>Welcome, {user?.firstName}</Heading>
-      <Text mb={5}>Business Partner: {user?.businessPartnerName}</Text>
+    <div className="space-y-6 p-4">
+      <div>
+        <h1 className="text-2xl font-bold">Welcome, {user?.firstName}</h1>
+        <p className="text-gray-600 mt-1">Business Partner: {user?.businessPartnerName}</p>
+      </div>
       
       {/* Download options */}
-      <HStack spacing={4} mb={5}>
+      <div className="flex flex-wrap gap-3">
         <Button
-          colorScheme={selectedFormat === 'excel' ? 'green' : 'gray'}
+          variant={selectedFormat === 'excel' ? 'default' : 'outline'}
           onClick={() => setSelectedFormat('excel')}
+          className={selectedFormat === 'excel' ? 'bg-green-600 hover:bg-green-700' : ''}
         >
           Excel
         </Button>
         <Button
-          colorScheme={selectedFormat === 'pdf' ? 'red' : 'gray'}
+          variant={selectedFormat === 'pdf' ? 'default' : 'outline'}
           onClick={() => setSelectedFormat('pdf')}
+          className={selectedFormat === 'pdf' ? 'bg-red-600 hover:bg-red-700' : ''}
         >
           PDF
         </Button>
         <Button
-          colorScheme="blue"
-          isDisabled={!selectedFormat}
+          disabled={!selectedFormat}
           onClick={handleDownload}
         >
           Download
         </Button>
-      </HStack>
+      </div>
       
       {isLoading && (
-        <Center h="500px">
-          <Spinner size="xl" />
-        </Center>
+        <div className="flex items-center justify-center h-96">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
       )}
       
       {error && (
-        <Center h="500px">
-          <Text color="red.500">{error}</Text>
-        </Center>
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
       
-      <Box
+      <div
         ref={dashboardContainerRef}
-        height="800px"
-        width="100%"
-        border="1px solid"
-        borderColor="gray.200"
-        borderRadius="md"
-        visibility={isLoading ? 'hidden' : 'visible'}
+        className="h-[800px] w-full border border-gray-200 rounded-md"
+        style={{ 
+          visibility: isLoading ? 'hidden' : 'visible' 
+        }}
       />
-    </Box>
+    </div>
   );
 };
 

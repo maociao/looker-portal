@@ -1,25 +1,19 @@
 import React, { useState, useEffect, useContext } from 'react';
-import {
-  Box,
-  Heading,
-  Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel,
-  useToast
-} from '@chakra-ui/react';
 import { AuthContext } from '../context/AuthContext';
 import UserManagement from './admin/UserManagement';
 import BusinessPartnerManagement from './admin/BusinessPartnerManagement';
 import { getUsers, getBusinessPartners } from '../services/api';
+
+// shadcn components
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/components/ui/use-toast";
 
 const AdminPanel = () => {
   const { token } = useContext(AuthContext);
   const [users, setUsers] = useState([]);
   const [partners, setPartners] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const toast = useToast();
+  const { toast } = useToast();
   
   const fetchData = async () => {
     setIsLoading(true);
@@ -35,9 +29,7 @@ const AdminPanel = () => {
       toast({
         title: 'Error fetching data',
         description: error.message || 'An error occurred',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
+        variant: 'destructive',
       });
     } finally {
       setIsLoading(false);
@@ -51,34 +43,33 @@ const AdminPanel = () => {
   }, [token]);
   
   return (
-    <Box p={5}>
-      <Heading mb={5}>Admin Panel</Heading>
+    <div className="p-6 space-y-6">
+      <h1 className="text-2xl font-bold">Admin Panel</h1>
       
-      <Tabs colorScheme="blue" variant="enclosed">
-        <TabList>
-          <Tab>Users</Tab>
-          <Tab>Business Partners</Tab>
-        </TabList>
+      <Tabs defaultValue="users">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="business-partners">Business Partners</TabsTrigger>
+        </TabsList>
         
-        <TabPanels>
-          <TabPanel>
-            <UserManagement 
-              users={users} 
-              partners={partners}
-              isLoading={isLoading}
-              refreshData={fetchData}
-            />
-          </TabPanel>
-          <TabPanel>
-            <BusinessPartnerManagement 
-              partners={partners}
-              isLoading={isLoading}
-              refreshData={fetchData}
-            />
-          </TabPanel>
-        </TabPanels>
+        <TabsContent value="users" className="pt-4">
+          <UserManagement 
+            users={users} 
+            partners={partners}
+            isLoading={isLoading}
+            refreshData={fetchData}
+          />
+        </TabsContent>
+        
+        <TabsContent value="business-partners" className="pt-4">
+          <BusinessPartnerManagement 
+            partners={partners}
+            isLoading={isLoading}
+            refreshData={fetchData}
+          />
+        </TabsContent>
       </Tabs>
-    </Box>
+    </div>
   );
 };
 

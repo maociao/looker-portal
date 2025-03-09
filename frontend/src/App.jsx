@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Route, Switch, Redirect } from 'react-router-dom';
-import { ChakraProvider, CSSReset, theme } from '@chakra-ui/react';
+// src/App.jsx
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
 // Components
 import Login from './components/Login';
@@ -14,20 +14,29 @@ import { AuthProvider } from './context/AuthContext';
 
 function App() {
   return (
-    <ChakraProvider theme={theme}>
-      <CSSReset />
+    <div className="min-h-screen bg-background font-sans antialiased">
       <AuthProvider>
         <Router>
           <Navbar />
-          <Switch>
-            <Route exact path="/login" component={Login} />
-            <ProtectedRoute exact path="/dashboard" component={Dashboard} />
-            <ProtectedRoute exact path="/admin" component={AdminPanel} roles={['admin']} />
-            <Redirect from="/" to="/dashboard" />
-          </Switch>
+          <main className="container mx-auto py-4">
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/dashboard" element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin" element={
+                <ProtectedRoute roles={['admin']}>
+                  <AdminPanel />
+                </ProtectedRoute>
+              } />
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
+          </main>
         </Router>
       </AuthProvider>
-    </ChakraProvider>
+    </div>
   );
 }
 

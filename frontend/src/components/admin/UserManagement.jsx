@@ -1,45 +1,52 @@
 import React, { useState, useContext } from 'react';
-import {
-  Box,
-  Button,
-  FormControl,
-  FormLabel,
-  Input,
-  Select,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalFooter,
-  ModalBody,
-  ModalCloseButton,
-  useDisclosure,
-  Stack,
-  Heading,
-  useToast,
-  Text,
-  HStack,
-  IconButton,
-  AlertDialog,
-  AlertDialogBody,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogContent,
-  AlertDialogOverlay,
-} from '@chakra-ui/react';
-import { AddIcon, EditIcon, DeleteIcon } from '@chakra-ui/icons';
 import { AuthContext } from '../../context/AuthContext';
 import { createUser, updateUser, deleteUser } from '../../services/api';
 
+// shadcn components
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useToast } from "@/components/ui/use-toast";
+
+// Lucide icons
+import { Plus, Pencil, Trash } from 'lucide-react';
+
 const UserManagement = ({ users, partners, isLoading, refreshData }) => {
   const { token } = useContext(AuthContext);
-  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [formData, setFormData] = useState({
     firstName: '',
@@ -49,12 +56,11 @@ const UserManagement = ({ users, partners, isLoading, refreshData }) => {
     role: 'user',
     businessPartnerId: '',
   });
-  const toast = useToast();
+  const { toast } = useToast();
   
   // Delete alert state
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
-  const cancelRef = React.useRef();
   
   const resetForm = () => {
     setFormData({
@@ -68,7 +74,7 @@ const UserManagement = ({ users, partners, isLoading, refreshData }) => {
     setSelectedUser(null);
   };
   
-  const handleOpenModal = (user = null) => {
+  const handleOpenDialog = (user = null) => {
     if (user) {
       setSelectedUser(user);
       setFormData({
@@ -82,20 +88,27 @@ const UserManagement = ({ users, partners, isLoading, refreshData }) => {
     } else {
       resetForm();
     }
-    onOpen();
+    setIsDialogOpen(true);
   };
   
-  const handleCloseModal = () => {
+  const handleCloseDialog = () => {
     resetForm();
-    onClose();
+    setIsDialogOpen(false);
   };
   
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData({
-      ...formData,
+    setFormData(prev => ({
+      ...prev,
       [name]: value,
-    });
+    }));
+  };
+  
+  const handleSelectChange = (name, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [name]: value,
+    }));
   };
   
   const handleSubmit = async () => {
@@ -109,28 +122,25 @@ const UserManagement = ({ users, partners, isLoading, refreshData }) => {
         
         await updateUser(selectedUser.id, userData, token);
         toast({
-          title: 'User updated',
-          status: 'success',
-          duration: 3000,
+          title: 'Success',
+          description: 'User updated successfully',
         });
       } else {
         // Create new user
         await createUser(formData, token);
         toast({
-          title: 'User created',
-          status: 'success',
-          duration: 3000,
+          title: 'Success',
+          description: 'User created successfully',
         });
       }
       
-      handleCloseModal();
+      handleCloseDialog();
       refreshData();
     } catch (error) {
       toast({
         title: 'Error',
-        description: error.message,
-        status: 'error',
-        duration: 5000,
+        description: error.message || 'An error occurred',
+        variant: 'destructive',
       });
     }
   };
@@ -146,195 +156,204 @@ const UserManagement = ({ users, partners, isLoading, refreshData }) => {
       setIsDeleteAlertOpen(false);
       refreshData();
       toast({
-        title: 'User deleted',
-        status: 'success',
-        duration: 3000,
+        title: 'Success',
+        description: 'User deleted successfully',
       });
     } catch (error) {
       toast({
         title: 'Error',
-        description: error.message,
-        status: 'error',
-        duration: 5000,
+        description: error.message || 'An error occurred',
+        variant: 'destructive',
       });
     }
   };
   
   return (
-    <Box>
-      <HStack justify="space-between" mb={5}>
-        <Heading size="md">User Management</Heading>
-        <Button
-          leftIcon={<AddIcon />}
-          colorScheme="blue"
-          onClick={() => handleOpenModal()}
-        >
-          Add User
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold">User Management</h2>
+        <Button onClick={() => handleOpenDialog()} className="flex items-center gap-1">
+          <Plus size={16} /> Add User
         </Button>
-      </HStack>
+      </div>
       
       {users.length === 0 ? (
-        <Text>No users found</Text>
+        <p className="text-sm text-gray-500">No users found</p>
       ) : (
-        <Table variant="simple">
-          <Thead>
-            <Tr>
-              <Th>Name</Th>
-              <Th>Email</Th>
-              <Th>Role</Th>
-              <Th>Business Partner</Th>
-              <Th>Actions</Th>
-            </Tr>
-          </Thead>
-          <Tbody>
-            {users.map((user) => (
-              <Tr key={user.id}>
-                <Td>{`${user.firstName} ${user.lastName}`}</Td>
-                <Td>{user.email}</Td>
-                <Td>{user.role}</Td>
-                <Td>
-                  {partners.find(p => p.id === user.businessPartnerId)?.name || 'N/A'}
-                </Td>
-                <Td>
-                  <HStack spacing={2}>
-                    <IconButton
-                      icon={<EditIcon />}
-                      size="sm"
-                      aria-label="Edit user"
-                      onClick={() => handleOpenModal(user)}
-                    />
-                    <IconButton
-                      icon={<DeleteIcon />}
-                      size="sm"
-                      colorScheme="red"
-                      aria-label="Delete user"
-                      onClick={() => handleDeleteClick(user)}
-                    />
-                  </HStack>
-                </Td>
-              </Tr>
-            ))}
-          </Tbody>
-        </Table>
+        <div className="border rounded-md">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Business Partner</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {users.map((user) => (
+                <TableRow key={user.id}>
+                  <TableCell>{`${user.firstName} ${user.lastName}`}</TableCell>
+                  <TableCell>{user.email}</TableCell>
+                  <TableCell>{user.role}</TableCell>
+                  <TableCell>
+                    {partners.find(p => p.id === user.businessPartnerId)?.name || 'N/A'}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={() => handleOpenDialog(user)}
+                      >
+                        <Pencil size={16} />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => handleDeleteClick(user)}
+                      >
+                        <Trash size={16} />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       )}
       
-      {/* User Form Modal */}
-      <Modal isOpen={isOpen} onClose={handleCloseModal}>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>
-            {selectedUser ? 'Edit User' : 'Add New User'}
-          </ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <Stack spacing={4}>
-              <FormControl id="firstName" isRequired>
-                <FormLabel>First Name</FormLabel>
+      {/* User Form Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedUser ? 'Edit User' : 'Add New User'}
+            </DialogTitle>
+            <DialogDescription>
+              Fill in the form below to {selectedUser ? 'update' : 'create'} a user.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">First Name</Label>
                 <Input
+                  id="firstName"
                   name="firstName"
                   value={formData.firstName}
                   onChange={handleInputChange}
+                  required
                 />
-              </FormControl>
+              </div>
               
-              <FormControl id="lastName" isRequired>
-                <FormLabel>Last Name</FormLabel>
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Last Name</Label>
                 <Input
+                  id="lastName"
                   name="lastName"
                   value={formData.lastName}
                   onChange={handleInputChange}
+                  required
                 />
-              </FormControl>
-              
-              <FormControl id="email" isRequired>
-                <FormLabel>Email</FormLabel>
-                <Input
-                  name="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                />
-              </FormControl>
-              
-              <FormControl id="password" isRequired={!selectedUser}>
-                <FormLabel>{selectedUser ? 'Password (leave empty to keep current)' : 'Password'}</FormLabel>
-                <Input
-                  name="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={handleInputChange}
-                />
-              </FormControl>
-              
-              <FormControl id="role" isRequired>
-                <FormLabel>Role</FormLabel>
-                <Select
-                  name="role"
-                  value={formData.role}
-                  onChange={handleInputChange}
-                >
-                  <option value="user">User</option>
-                  <option value="admin">Admin</option>
-                </Select>
-              </FormControl>
-              
-              <FormControl id="businessPartnerId" isRequired>
-                <FormLabel>Business Partner</FormLabel>
-                <Select
-                  name="businessPartnerId"
-                  value={formData.businessPartnerId}
-                  onChange={handleInputChange}
-                >
-                  <option value="">Select Business Partner</option>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                value={formData.email}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="password">
+                {selectedUser ? 'Password (leave empty to keep current)' : 'Password'}
+              </Label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                value={formData.password}
+                onChange={handleInputChange}
+                required={!selectedUser}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="role">Role</Label>
+              <Select 
+                value={formData.role} 
+                onValueChange={(value) => handleSelectChange('role', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="user">User</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="businessPartnerId">Business Partner</Label>
+              <Select 
+                value={formData.businessPartnerId} 
+                onValueChange={(value) => handleSelectChange('businessPartnerId', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Business Partner" />
+                </SelectTrigger>
+                <SelectContent>
                   {partners.map((partner) => (
-                    <option key={partner.id} value={partner.id}>
+                    <SelectItem key={partner.id} value={partner.id}>
                       {partner.name}
-                    </option>
+                    </SelectItem>
                   ))}
-                </Select>
-              </FormControl>
-            </Stack>
-          </ModalBody>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
           
-          <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={handleCloseModal}>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCloseDialog}>
               Cancel
             </Button>
-            <Button colorScheme="blue" onClick={handleSubmit}>
+            <Button onClick={handleSubmit}>
               {selectedUser ? 'Update' : 'Create'}
             </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       
       {/* Delete Confirmation Dialog */}
-      <AlertDialog
-        isOpen={isDeleteAlertOpen}
-        leastDestructiveRef={cancelRef}
-        onClose={() => setIsDeleteAlertOpen(false)}
-      >
-        <AlertDialogOverlay>
-          <AlertDialogContent>
-            <AlertDialogHeader fontSize="lg" fontWeight="bold">
-              Delete User
-            </AlertDialogHeader>
-            
-            <AlertDialogBody>
+      <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete User</AlertDialogTitle>
+            <AlertDialogDescription>
               Are you sure you want to delete {userToDelete?.firstName} {userToDelete?.lastName}? This action cannot be undone.
-            </AlertDialogBody>
-            
-            <AlertDialogFooter>
-              <Button ref={cancelRef} onClick={() => setIsDeleteAlertOpen(false)}>
-                Cancel
-              </Button>
-              <Button colorScheme="red" onClick={handleDeleteConfirm} ml={3}>
-                Delete
-              </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialogOverlay>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-red-600 hover:bg-red-700">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
       </AlertDialog>
-    </Box>
+    </div>
   );
 };
 

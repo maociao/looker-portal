@@ -1,40 +1,33 @@
+// src/components/ProtectedRoute.jsx
 import React, { useContext } from 'react';
-import { Route, Redirect } from 'react-router-dom';
-import { Center, Spinner } from '@chakra-ui/react';
+import { Navigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 
-const ProtectedRoute = ({ component: Component, roles, ...rest }) => {
+const ProtectedRoute = ({ children, roles }) => {
   const { user, loading } = useContext(AuthContext);
 
   // Show loading spinner while checking authentication
   if (loading) {
     return (
-      <Center h="100vh">
-        <Spinner size="xl" />
-      </Center>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
     );
   }
 
-  return (
-    <Route
-      {...rest}
-      render={(props) => {
-        // Check if user is authenticated
-        if (!user) {
-          return <Redirect to="/login" />;
-        }
+  // Check if user is authenticated
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
 
-        // Check if route requires specific roles
-        if (roles && !roles.includes(user.role)) {
-          // Redirect to dashboard if user doesn't have required role
-          return <Redirect to="/dashboard" />;
-        }
+  // Check if route requires specific roles
+  if (roles && !roles.includes(user.role)) {
+    // Redirect to dashboard if user doesn't have required role
+    return <Navigate to="/dashboard" replace />;
+  }
 
-        // If authenticated and has required role, render the component
-        return <Component {...props} />;
-      }}
-    />
-  );
+  // If authenticated and has required role, render the children
+  return children;
 };
 
 export default ProtectedRoute;
