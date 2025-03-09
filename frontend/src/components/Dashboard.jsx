@@ -2,14 +2,20 @@ import React, { useEffect, useState, useContext, useRef } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { getLookerEmbedUrl } from '../services/api';
 import { LookerEmbedSDK } from '@looker/embed-sdk';
+import MockDashboard from './MockDashboard';
 
 // shadcn components
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
-// Initialize Looker Embed SDK
-LookerEmbedSDK.init(import.meta.env.VITE_LOOKER_HOST);
+// Check if we're using mock Looker API
+const USE_MOCK_LOOKER = import.meta.env.VITE_USE_MOCK_LOOKER === 'true';
+
+// Initialize Looker Embed SDK only if not using mock
+if (!USE_MOCK_LOOKER) {
+  LookerEmbedSDK.init(import.meta.env.VITE_LOOKER_HOST);
+}
 
 const Dashboard = () => {
   const { user, token } = useContext(AuthContext);
@@ -20,6 +26,14 @@ const Dashboard = () => {
   const [selectedFormat, setSelectedFormat] = useState('');
   
   useEffect(() => {
+    // If using mock API, return early after a delay to simulate loading
+    if (USE_MOCK_LOOKER) {
+      const timer = setTimeout(() => {
+        setIsLoading(false);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+    
     const fetchDashboard = async () => {
       try {
         setIsLoading(true);
@@ -93,6 +107,26 @@ const Dashboard = () => {
   
   // Handle download
   const handleDownload = () => {
+    if (USE_MOCK_LOOKER) {
+      // Simulate download in mock mode
+      const link = document.createElement('a');
+      const filename = selectedFormat === 'excel' ? 'mock-dashboard.xlsx' : 'mock-dashboard.pdf';
+      const mimeType = selectedFormat === 'excel' 
+        ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+        : 'application/pdf';
+      
+      const blob = new Blob(['Mock file content'], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      return;
+    }
+    
     if (!dashboardRef.current || !selectedFormat) return;
     
     if (selectedFormat === 'excel') {
@@ -145,13 +179,18 @@ const Dashboard = () => {
         </Alert>
       )}
       
-      <div
-        ref={dashboardContainerRef}
-        className="h-[800px] w-full border border-gray-200 rounded-md"
-        style={{ 
-          visibility: isLoading ? 'hidden' : 'visible' 
-        }}
-      />
+      {/* Use MockDashboard component when in mock mode */}
+      {USE_MOCK_LOOKER ? (
+        <MockDashboard />
+      ) : (
+        <div
+          ref={dashboardContainerRef}
+          className="h-[800px] w-full border border-gray-200 rounded-md"
+          style={{ 
+            visibility: isLoading ? 'hidden' : 'visible' 
+          }}
+        />
+      )}
     </div>
   );
 };

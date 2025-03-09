@@ -8,9 +8,24 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 
-const { LookerNodeSDK } = require('@looker/sdk');
-const { NodeSettingsIniFile } = require('@looker/sdk-node');
-const lookerSDK = LookerNodeSDK.init(new NodeSettingsIniFile());
+// Check if we should use mock Looker services
+const USE_MOCK_LOOKER = process.env.USE_MOCK_LOOKER === 'true' || !process.env.LOOKER_HOST;
+
+// Initialize Looker SDK conditionally
+let lookerSDK = null;
+if (!USE_MOCK_LOOKER) {
+  try {
+    const { LookerNodeSDK } = require('@looker/sdk');
+    const { NodeSettingsIniFile } = require('@looker/sdk-node');
+    lookerSDK = LookerNodeSDK.init(new NodeSettingsIniFile());
+    console.log('Looker SDK initialized successfully');
+  } catch (error) {
+    console.warn('Failed to initialize Looker SDK:', error.message);
+    console.warn('Running in mock Looker mode');
+  }
+} else {
+  console.log('Running without Looker SDK - using frontend mocks for Looker functionality');
+}
 
 // Initialize Express app
 const app = express();
@@ -19,10 +34,18 @@ app.use(helmet());
 app.use(cors({ origin: process.env.FRONTEND_URL }));
 
 // Initialize Firestore
-const firestore = new Firestore();
+const projectId = process.env.GOOGLE_CLOUD_PROJECT; // Your project ID
+const databaseId = process.env.FIRESTORE_DATABASE_ID; // Your custom database name
+
+console.log(`Attempting to connect to Firestore database '${databaseId}' in project: ${projectId}`);
+
+const firestore = new Firestore({
+  projectId: projectId,
+  databaseId: databaseId
+});
+
 const usersCollection = firestore.collection('users');
 const businessPartnersCollection = firestore.collection('businessPartners');
-
 // Secret key for JWT
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -43,6 +66,17 @@ const authenticateToken = (req, res, next) => {
     next();
   });
 };
+
+// Firestore Connection Test Route
+app.get('/api/test-firestore', async (req, res) => {
+  try {
+    const snapshot = await firestore.collection('users').limit(1).get();
+    res.json({ success: true, message: 'Connected to Firestore successfully' });
+  } catch (error) {
+    console.error('Firestore connection error:', error);
+    res.status(500).json({ success: false, message: 'Failed to connect to Firestore' });
+  }
+});
 
 // Authentication Routes
 app.post('/api/login', async (req, res) => {
