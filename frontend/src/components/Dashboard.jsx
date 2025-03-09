@@ -5,7 +5,7 @@ import { getLookerEmbedUrl } from '../services/api';
 import { LookerEmbedSDK } from '@looker/embed-sdk';
 
 // Initialize Looker Embed SDK
-LookerEmbedSDK.init(process.env.REACT_APP_LOOKER_HOST);
+LookerEmbedSDK.init(import.meta.env.VITE_LOOKER_HOST);
 
 const Dashboard = () => {
   const { user, token } = useContext(AuthContext);

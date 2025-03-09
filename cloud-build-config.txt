@@ -48,7 +48,7 @@ steps:
       - '--memory=512Mi'
       - '--min-instances=0'
       - '--max-instances=5'
-      - '--set-env-vars=REACT_APP_API_URL=${_BACKEND_URL},REACT_APP_LOOKER_HOST=${_LOOKER_HOST}'
+      - '--set-env-vars=VITE_API_URL=${_BACKEND_URL},VITE_LOOKER_HOST=${_LOOKER_HOST}'
       
 # Store the built images in Container Registry
 images:

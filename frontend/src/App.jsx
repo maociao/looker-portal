@@ -1,5 +1,3 @@
-// src/App.js - Main Application File
-
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Route, Switch, Redirect } from 'react-router-dom';
 import { ChakraProvider, CSSReset, theme } from '@chakra-ui/react';

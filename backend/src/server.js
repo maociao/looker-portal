@@ -1,4 +1,4 @@
-// server.js - Main Server File
+require('dotenv').config();
 
 const express = require('express');
 const helmet = require('helmet');
@@ -7,6 +7,7 @@ const { Firestore } = require('@google-cloud/firestore');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+
 const { LookerNodeSDK } = require('@looker/sdk');
 const { NodeSettingsIniFile } = require('@looker/sdk-node');
 const lookerSDK = LookerNodeSDK.init(new NodeSettingsIniFile());
@@ -232,6 +233,94 @@ app.post('/api/users', authenticateToken, async (req, res) => {
   }
 });
 
+// User Update Route
+app.put('/api/users/:id', authenticateToken, async (req, res) => {
+  try {
+    // Check if user is admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+    
+    const userId = req.params.id;
+    const { firstName, lastName, email, password, role, businessPartnerId } = req.body;
+    
+    // Verify user exists
+    const userDoc = await usersCollection.doc(userId).get();
+    if (!userDoc.exists) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Verify business partner exists
+    const businessPartnerSnapshot = await businessPartnersCollection.doc(businessPartnerId).get();
+    if (!businessPartnerSnapshot.exists) {
+      return res.status(404).json({ message: 'Business partner not found' });
+    }
+    
+    // Check if email is already in use by another user
+    if (email !== userDoc.data().email) {
+      const existingUserSnapshot = await usersCollection.where('email', '==', email).limit(1).get();
+      if (!existingUserSnapshot.empty && existingUserSnapshot.docs[0].id !== userId) {
+        return res.status(400).json({ message: 'Email already in use' });
+      }
+    }
+    
+    // Prepare update data
+    const updateData = {
+      firstName,
+      lastName,
+      email,
+      role,
+      businessPartnerId
+    };
+    
+    // Only update password if provided
+    if (password) {
+      updateData.passwordHash = await bcrypt.hash(password, 10);
+    }
+    
+    // Update user
+    await usersCollection.doc(userId).update(updateData);
+    
+    res.json({ 
+      message: 'User updated successfully',
+      user: {
+        id: userId,
+        ...updateData,
+        passwordHash: undefined // Don't return the password hash
+      } 
+    });
+  } catch (error) {
+    console.error('Update user error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// User Delete Route
+app.delete('/api/users/:id', authenticateToken, async (req, res) => {
+  try {
+    // Check if user is admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+    
+    const userId = req.params.id;
+    
+    // Verify user exists
+    const userDoc = await usersCollection.doc(userId).get();
+    if (!userDoc.exists) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Delete user
+    await usersCollection.doc(userId).delete();
+    
+    res.json({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('Delete user error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Business Partner Management Routes (Admin Only)
 app.get('/api/business-partners', authenticateToken, async (req, res) => {
   try {
@@ -289,6 +378,80 @@ app.post('/api/business-partners', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Create partner error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Business Partner Update Route
+app.put('/api/business-partners/:id', authenticateToken, async (req, res) => {
+  try {
+    // Check if user is admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+    
+    const partnerId = req.params.id;
+    const { name, contactEmail, assignedDashboards } = req.body;
+    
+    // Verify business partner exists
+    const partnerDoc = await businessPartnersCollection.doc(partnerId).get();
+    if (!partnerDoc.exists) {
+      return res.status(404).json({ message: 'Business partner not found' });
+    }
+    
+    // Prepare update data
+    const updateData = {
+      name,
+      contactEmail,
+      assignedDashboards: assignedDashboards || []
+    };
+    
+    // Update business partner
+    await businessPartnersCollection.doc(partnerId).update(updateData);
+    
+    res.json({ 
+      message: 'Business partner updated successfully',
+      partner: {
+        id: partnerId,
+        ...updateData
+      } 
+    });
+  } catch (error) {
+    console.error('Update partner error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Business Partner Delete Route
+app.delete('/api/business-partners/:id', authenticateToken, async (req, res) => {
+  try {
+    // Check if user is admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+    
+    const partnerId = req.params.id;
+    
+    // Verify business partner exists
+    const partnerDoc = await businessPartnersCollection.doc(partnerId).get();
+    if (!partnerDoc.exists) {
+      return res.status(404).json({ message: 'Business partner not found' });
+    }
+    
+    // Check if any users are associated with this business partner
+    const usersSnapshot = await usersCollection.where('businessPartnerId', '==', partnerId).limit(1).get();
+    if (!usersSnapshot.empty) {
+      return res.status(400).json({ 
+        message: 'Cannot delete business partner with associated users. Please reassign or delete those users first.' 
+      });
+    }
+    
+    // Delete business partner
+    await businessPartnersCollection.doc(partnerId).delete();
+    
+    res.json({ message: 'Business partner deleted successfully' });
+  } catch (error) {
+    console.error('Delete partner error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
