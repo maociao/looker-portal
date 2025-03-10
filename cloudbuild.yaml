@@ -26,7 +26,7 @@ steps:
       - '--memory=512Mi'
       - '--min-instances=0'
       - '--max-instances=5'
-      - '--set-env-vars=PORT=8080,FRONTEND_URL=https://looker-portal-frontend-xxxx-uc.a.run.app,GOOGLE_CLOUD_PROJECT=afrr-portal,FIRESTORE_DATABASE_ID=afrr-portal,PROJECT_ID=$PROJECT_ID,JWT_SECRET=${_JWT_SECRET},USE_MOCK_LOOKER=${_USE_MOCK_LOOKER}'
+      - '--set-env-vars=FRONTEND_URL=https://looker-portal-frontend-xxxx-uc.a.run.app,GOOGLE_CLOUD_PROJECT=afrr-portal,FIRESTORE_DATABASE_ID=afrr-portal,PROJECT_ID=$PROJECT_ID,JWT_SECRET=${_JWT_SECRET},USE_MOCK_LOOKER=${_USE_MOCK_LOOKER}'
       
   # Save backend URL for frontend deployment
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
