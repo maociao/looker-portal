@@ -3,6 +3,16 @@ FROM node:18-slim as build
 
 WORKDIR /app
 
+# Define build arguments
+ARG VITE_API_URL
+ARG VITE_LOOKER_HOST
+ARG VITE_USE_MOCK_LOOKER
+
+# Set environment variables for the build process
+ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_LOOKER_HOST=${VITE_LOOKER_HOST}
+ENV VITE_USE_MOCK_LOOKER=${VITE_USE_MOCK_LOOKER}
+
 # Copy package files and install dependencies
 COPY package*.json ./
 RUN npm install
