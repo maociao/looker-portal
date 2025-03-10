@@ -27,9 +27,16 @@ steps:
       - '--max-instances=5'
       - '--set-env-vars=FRONTEND_URL=https://looker-portal-frontend-794967178569.us-central1.run.app,GOOGLE_CLOUD_PROJECT=afrr-portal,FIRESTORE_DATABASE_ID=afrr-portal,PROJECT_ID=$PROJECT_ID,JWT_SECRET=${_JWT_SECRET},USE_MOCK_LOOKER=${_USE_MOCK_LOOKER}'
       
-  # Build the frontend container image
+  # Build the frontend container image - add build args here
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/looker-portal-frontend:$COMMIT_SHA', './frontend']
+    args: [
+      'build', 
+      '-t', 'gcr.io/$PROJECT_ID/looker-portal-frontend:$COMMIT_SHA', 
+      '--build-arg', 'VITE_API_URL=https://looker-portal-backend-794967178569.us-central1.run.app',
+      '--build-arg', 'VITE_LOOKER_HOST=${_LOOKER_HOST}',
+      '--build-arg', 'VITE_USE_MOCK_LOOKER=${_USE_MOCK_LOOKER}',
+      './frontend'
+    ]
     
   # Push the frontend container image to Container Registry
   - name: 'gcr.io/cloud-builders/docker'
