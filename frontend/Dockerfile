@@ -3,19 +3,11 @@ FROM node:18-slim as build
 
 WORKDIR /app
 
-# Install dependencies using package-lock.json for deterministic builds
-COPY package*.json ./
-# Install ALL dependencies, including dev dependencies
+# Copy everything
+COPY . .
+
+# Install dependencies
 RUN npm install
-
-# Copy TypeScript configs
-COPY tsconfig*.json ./
-COPY vite.config.ts ./
-
-# Copy source code
-COPY public ./public
-COPY src ./src
-COPY index.html ./
 
 # Build the app
 RUN npm run build
@@ -26,25 +18,17 @@ FROM nginx:alpine
 # Copy built files from build stage
 COPY --from=build /app/dist /usr/share/nginx/html
 
-# Copy nginx configuration for SPA
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Configure NGINX to use port 8080 (Cloud Run requirement)
+RUN echo 'server { \
+  listen 8080; \
+  location / { \
+    root /usr/share/nginx/html; \
+    index index.html; \
+    try_files $uri $uri/ /index.html; \
+  } \
+}' > /etc/nginx/conf.d/default.conf
 
-# Create a script to import environment variables at runtime
-RUN echo '#!/bin/sh\n\
-envsubst < /usr/share/nginx/html/env-template.js > /usr/share/nginx/html/env-config.js\n\
-nginx -g "daemon off;"' > /docker-entrypoint.sh
-
-# Make the script executable
-RUN chmod +x /docker-entrypoint.sh
-
-# Create env template
-RUN echo 'window.ENV = { \
-VITE_API_URL: "${VITE_API_URL}", \
-VITE_LOOKER_HOST: "${VITE_LOOKER_HOST}", \
-VITE_USE_MOCK_LOOKER: "${VITE_USE_MOCK_LOOKER}" \
-};' > /usr/share/nginx/html/env-template.js
-
+# Expose port 8080 for Cloud Run
 EXPOSE 8080
 
-# Start NGINX with our custom entrypoint
-ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["nginx", "-g", "daemon off;"]
