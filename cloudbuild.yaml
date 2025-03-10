@@ -1,4 +1,3 @@
-# cloudbuild.yaml - Google Cloud Build configuration
 options:
   logging: CLOUD_LOGGING_ONLY
 
@@ -36,7 +35,8 @@ steps:
       - '-c'
       - |
         echo "$(gcloud run services describe looker-portal-backend --platform managed --region us-central1 --format='value(status.url)')" > /workspace/backend_url.txt
-
+        cat /workspace/backend_url.txt
+      
   # Build the frontend container image
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', 'gcr.io/$PROJECT_ID/looker-portal-frontend:$COMMIT_SHA', './frontend']
@@ -70,7 +70,6 @@ images:
 # Substitution variables to be defined in the build trigger
 substitutions:
   _LOOKER_HOST: 'your-looker-instance.cloud.looker.com'
-  _BACKEND_URL: 'https://looker-portal-backend-xxxx-uc.a.run.app'
   _LOOKER_EMBED_SECRET: 'SECRET_TO_BE_DEFINED'
   _JWT_SECRET: 'SECRET_TO_BE_DEFINED'
   _USE_MOCK_LOOKER: 'true'  # Toggle between 'true' and 'false'
