@@ -3,15 +3,14 @@ FROM node:18-slim as build
 
 WORKDIR /app
 
-# Copy package files and install dependencies
+# Copy package files
 COPY package*.json ./
-RUN npm install --omit=dev
+
+# Install ALL dependencies (including dev dependencies)
+RUN npm install
 
 # Copy source code
 COPY . .
-
-# Copy environment files
-COPY .env.production .env
 
 # Build the app
 RUN npm run build
