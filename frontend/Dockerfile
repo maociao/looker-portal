@@ -13,7 +13,7 @@ COPY tsconfig*.json ./
 COPY vite.config.ts ./
 
 # Copy source code
-COPY public ./public
+COPY public ./public || true
 COPY src ./src
 COPY index.html ./
 
@@ -32,8 +32,10 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 # Create a script to import environment variables at runtime
 RUN echo '#!/bin/sh\n\
 envsubst < /usr/share/nginx/html/env-template.js > /usr/share/nginx/html/env-config.js\n\
-nginx -g "daemon off;"' > /docker-entrypoint.sh && \
-chmod +x /docker-entrypoint.sh
+nginx -g "daemon off;"' > /docker-entrypoint.sh
+
+# Make the script executable
+RUN chmod +x /docker-entrypoint.sh
 
 # Create env template
 RUN echo 'window.ENV = { \
@@ -45,4 +47,4 @@ VITE_USE_MOCK_LOOKER: "${VITE_USE_MOCK_LOOKER}" \
 EXPOSE 80
 
 # Start NGINX with our custom entrypoint
-CMD ["/docker-entrypoint.sh"]
+ENTRYPOINT ["/docker-entrypoint.sh"]
