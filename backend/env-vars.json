@@ -1,6 +1,0 @@
-{
-    "PORT": "8080",
-    "FRONTEND_URL": "https://looker-portal-frontend-xxxx-uc.a.run.app",
-    "GOOGLE_CLOUD_PROJECT": "afrr-portal",
-    "FIRESTORE_DATABASE_ID": "afrr-portal"
-}
