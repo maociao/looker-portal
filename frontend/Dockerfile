@@ -13,7 +13,7 @@ COPY tsconfig*.json ./
 COPY vite.config.ts ./
 
 # Copy source code
-COPY public ./public || true
+COPY public ./public
 COPY src ./src
 COPY index.html ./
 
