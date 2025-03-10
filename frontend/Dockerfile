@@ -14,7 +14,7 @@ RUN npm run build
 
 # Create env.js directly in the build
 RUN echo "window.ENV = { \
-  VITE_API_URL: '${VITE_API_URL:-/api}', \
+  VITE_API_URL: '${VITE_API_URL}', \
   VITE_LOOKER_HOST: '${VITE_LOOKER_HOST:-mock.looker.com}', \
   VITE_USE_MOCK_LOOKER: '${VITE_USE_MOCK_LOOKER:-true}' \
 };" > dist/env-config.js
