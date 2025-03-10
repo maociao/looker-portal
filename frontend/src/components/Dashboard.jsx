@@ -4,6 +4,7 @@ import { getLookerEmbedUrl, getUserDashboards } from '../services/api';
 import { LookerEmbedSDK } from '@looker/embed-sdk';
 import MockDashboard from './MockDashboard';
 import DashboardSelector from './DashboardSelector';
+import { USE_MOCK_LOOKER, LOOKER_HOST } from '../config/env';
 
 // shadcn components
 import { Button } from "@/components/ui/button";
@@ -11,12 +12,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-// Check if we're using mock Looker API
-const USE_MOCK_LOOKER = import.meta.env.VITE_USE_MOCK_LOOKER === 'true';
-
 // Initialize Looker Embed SDK only if not using mock
 if (!USE_MOCK_LOOKER) {
-  LookerEmbedSDK.init(import.meta.env.VITE_LOOKER_HOST);
+  LookerEmbedSDK.init(LOOKER_HOST);
 }
 
 const Dashboard = () => {

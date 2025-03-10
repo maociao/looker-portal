@@ -1,8 +1,7 @@
 // src/services/lookerApi.js
 import * as realLookerApi from './realLookerApi';
 import * as mockApi from './mockApi';
-
-const USE_MOCK_LOOKER = import.meta.env.VITE_USE_MOCK_LOOKER === 'true';
+import { USE_MOCK_LOOKER } from '../config/env';
 
 // Export all Looker API functions
 export const getLookerDashboards = USE_MOCK_LOOKER ? mockApi.getLookerDashboards : realLookerApi.getLookerDashboards;

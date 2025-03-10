@@ -1,9 +1,7 @@
 // src/services/api.js
 import * as realApi from './realApi';
 import * as mockApi from './mockApi';
-
-const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API === 'true';
-const USE_MOCK_LOOKER = import.meta.env.VITE_USE_MOCK_LOOKER === 'true';
+import { USE_MOCK_API, USE_MOCK_LOOKER } from '../config/env';
 
 // Export all API functions, using either real or mock implementation
 export const loginUser = USE_MOCK_API ? mockApi.loginUser : realApi.loginUser;
