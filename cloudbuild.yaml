@@ -25,17 +25,7 @@ steps:
       - '--memory=512Mi'
       - '--min-instances=0'
       - '--max-instances=5'
-      - '--set-env-vars=FRONTEND_URL=https://looker-portal-frontend-xxxx-uc.a.run.app,GOOGLE_CLOUD_PROJECT=afrr-portal,FIRESTORE_DATABASE_ID=afrr-portal,PROJECT_ID=$PROJECT_ID,JWT_SECRET=${_JWT_SECRET},USE_MOCK_LOOKER=${_USE_MOCK_LOOKER}'
-      
-  # Save backend URL for frontend deployment
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    id: 'get-backend-url'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        echo "$(gcloud run services describe looker-portal-backend --platform managed --region us-central1 --format='value(status.url)')" > /workspace/backend_url.txt
-        cat /workspace/backend_url.txt
+      - '--set-env-vars=FRONTEND_URL=https://looker-portal-frontend-794967178569.us-central1.run.app,GOOGLE_CLOUD_PROJECT=afrr-portal,FIRESTORE_DATABASE_ID=afrr-portal,PROJECT_ID=$PROJECT_ID,JWT_SECRET=${_JWT_SECRET},USE_MOCK_LOOKER=${_USE_MOCK_LOOKER}'
       
   # Build the frontend container image
   - name: 'gcr.io/cloud-builders/docker'
@@ -60,7 +50,7 @@ steps:
       - '--memory=512Mi'
       - '--min-instances=0'
       - '--max-instances=5'
-      - '--set-env-vars=VITE_API_URL=$(cat /workspace/backend_url.txt),VITE_LOOKER_HOST=${_LOOKER_HOST},VITE_USE_MOCK_LOOKER=${_USE_MOCK_LOOKER}'
+      - '--set-env-vars=VITE_API_URL=https://looker-portal-backend-794967178569.us-central1.run.app,VITE_LOOKER_HOST=${_LOOKER_HOST},VITE_USE_MOCK_LOOKER=${_USE_MOCK_LOOKER}'
       
 # Store the built images in Container Registry
 images:
@@ -70,6 +60,7 @@ images:
 # Substitution variables to be defined in the build trigger
 substitutions:
   _LOOKER_HOST: 'your-looker-instance.cloud.looker.com'
+  _BACKEND_URL: https://looker-portal-backend-794967178569.us-central1.run.app
   _LOOKER_EMBED_SECRET: 'SECRET_TO_BE_DEFINED'
   _JWT_SECRET: 'SECRET_TO_BE_DEFINED'
   _USE_MOCK_LOOKER: 'true'  # Toggle between 'true' and 'false'
