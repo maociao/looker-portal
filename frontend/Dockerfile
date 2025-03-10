@@ -44,7 +44,7 @@ VITE_LOOKER_HOST: "${VITE_LOOKER_HOST}", \
 VITE_USE_MOCK_LOOKER: "${VITE_USE_MOCK_LOOKER}" \
 };' > /usr/share/nginx/html/env-template.js
 
-EXPOSE 80
+EXPOSE 8080
 
 # Start NGINX with our custom entrypoint
 ENTRYPOINT ["/docker-entrypoint.sh"]
