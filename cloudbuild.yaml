@@ -1,4 +1,7 @@
 # cloudbuild.yaml - Google Cloud Build configuration
+options:
+  logging: CLOUD_LOGGING_ONLY
+
 steps:
   # Build the backend container image
   - name: 'gcr.io/cloud-builders/docker'
