@@ -11,7 +11,7 @@ steps:
     args: ['push', 'gcr.io/$PROJECT_ID/looker-portal-backend:$COMMIT_SHA']
 
   # Export the SBOM of the backend container image
-  - name: 'gcr.io/cloud-builders/docker'
+  - name: 'gcr.io/google.com/cloudsdktool/gcloud-sdk'
     args: ['artifacts', 'sbom', 'export', '--uri', 'gcr.io/$PROJECT_ID/looker-portal-backend:$COMMIT_SHA']
     id: 'sbom-backend'
 
@@ -48,7 +48,7 @@ steps:
     args: ['push', 'gcr.io/$PROJECT_ID/looker-portal-frontend:$COMMIT_SHA']
     
   # Export the SBOM of the frontend container image
-  - name: 'gcr.io/cloud-builders/docker'
+  - name: 'gcr.io/google.com/cloudsdktool/gcloud-sdk'
     args: ['artifacts', 'sbom', 'export', '--uri', 'gcr.io/$PROJECT_ID/looker-portal-frontend:$COMMIT_SHA']
     id: 'sbom-frontend'
 
