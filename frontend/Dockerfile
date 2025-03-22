@@ -13,14 +13,6 @@ ENV VITE_API_URL=${VITE_API_URL}
 ENV VITE_LOOKER_HOST=${VITE_LOOKER_HOST}
 ENV VITE_USE_MOCK_LOOKER=${VITE_USE_MOCK_LOOKER}
 
-# Create env.js directly in the build
-RUN echo "window.ENV = { \
-  VITE_API_URL: '${VITE_API_URL}', \
-  VITE_API_URL: '${VITE_API_URL}', \
-  VITE_LOOKER_HOST: '${VITE_LOOKER_HOST:-mock.looker.com}', \
-  VITE_USE_MOCK_LOOKER: '${VITE_USE_MOCK_LOOKER:-true}' \
-};" > dist/env-config.js
-
 # Copy package files and install dependencies
 COPY package*.json ./
 RUN npm install
@@ -47,3 +39,5 @@ RUN echo 'server { \
 }' > /etc/nginx/conf.d/default.conf
 
 EXPOSE 8080
+
+CMD ["nginx", "-g", "daemon off;"]
