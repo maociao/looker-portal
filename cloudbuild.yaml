@@ -33,7 +33,7 @@ steps:
       - '--memory=512Mi'
       - '--min-instances=0'
       - '--max-instances=5'
-      - '--set-env-vars=FRONTEND_URL=https://looker-portal-frontend-$PROJECT_NUMBER.us-central1.run.app,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,FIRESTORE_DATABASE_ID=afrr-portal,PROJECT_ID=$PROJECT_ID,JWT_SECRET=${_JWT_SECRET},USE_MOCK_LOOKER=${_USE_MOCK_LOOKER}'
+      - '--set-env-vars=FRONTEND_URL=https://looker-portal-frontend-$PROJECT_NUMBER.us-central1.run.app,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,FIRESTORE_DATABASE_ID=afrr-portal,PROJECT_ID=$PROJECT_ID,JWT_SECRET=${_JWT_SECRET},USE_MOCK_LOOKER=${_USE_MOCK_LOOKER},REFRESH_TOKEN_SECRET=${_REFRESH_TOKEN_SECRET}'
       
   # Build the frontend container image with build args
   - name: 'gcr.io/cloud-builders/docker'
@@ -99,4 +99,5 @@ substitutions:
   _BACKEND_URL: https://looker-portal-backend-$PROJECT_NUMBER.us-central1.run.app
   _LOOKER_EMBED_SECRET: 'SECRET_TO_BE_DEFINED'
   _JWT_SECRET: 'SECRET_TO_BE_DEFINED'
+  _REFRESH_TOKEN_SECRET: 'SECRET_TO_BE_DEFINED'
   _USE_MOCK_LOOKER: 'true'  # Toggle between 'true' and 'false'

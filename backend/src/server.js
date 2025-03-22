@@ -76,6 +76,8 @@ const usersCollection = firestore.collection('users');
 const businessPartnersCollection = firestore.collection('businessPartners');
 // Secret key for JWT
 const JWT_SECRET = process.env.JWT_SECRET;
+// Setup JWT secret
+const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || JWT_SECRET;
 
 // Looker embedding secrets
 const LOOKER_EMBED_SECRET = process.env.LOOKER_EMBED_SECRET;
@@ -161,7 +163,9 @@ app.post('/api/login', loginLimiter, async (req, res) => {
     });
 
     res.json({
-      token, user: {
+      token,
+      refreshToken,
+      user: {
         id: userId,
         email: userData.email,
         firstName: userData.firstName,
@@ -173,6 +177,56 @@ app.post('/api/login', loginLimiter, async (req, res) => {
     });
   } catch (error) {
     console.error('Login error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Add this after your login route
+app.post('/api/refresh-token', async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    
+    if (!refreshToken) {
+      return res.status(401).json({ message: 'Refresh token is required' });
+    }
+    
+    // Verify the refresh token
+    jwt.verify(refreshToken, REFRESH_TOKEN_SECRET, async (err, decoded) => {
+      if (err) return res.status(403).json({ message: 'Invalid refresh token' });
+      
+      // Find user in database to ensure they still exist and have access
+      const userDoc = await usersCollection.doc(decoded.userId).get();
+      
+      if (!userDoc.exists) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      const userData = userDoc.data();
+      
+      // Get business partner details
+      const businessPartnerSnapshot = await businessPartnersCollection
+        .doc(userData.businessPartnerId).get();
+      
+      if (!businessPartnerSnapshot.exists) {
+        return res.status(404).json({ message: 'Business partner not found' });
+      }
+      
+      const businessPartnerData = businessPartnerSnapshot.data();
+      
+      // Create new access token (shorter lived)
+      const token = jwt.sign({
+        userId: decoded.userId,
+        email: userData.email,
+        role: userData.role,
+        businessPartnerId: userData.businessPartnerId,
+        businessPartnerName: businessPartnerData.name
+      }, JWT_SECRET, { expiresIn: '1h' });
+      
+      // Return the new access token
+      res.json({ token });
+    });
+  } catch (error) {
+    console.error('Refresh token error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

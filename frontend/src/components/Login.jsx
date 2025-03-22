@@ -34,9 +34,11 @@ const Login = () => {
       
       if (response.token && response.user) {
         localStorage.setItem('token', response.token);
+        localStorage.setItem('refreshToken', response.refreshToken);
         localStorage.setItem('user', JSON.stringify(response.user));
         
         setToken(response.token);
+        setRefreshToken(response.refreshToken);
         setUser(response.user);
         
         // Navigate based on user role
