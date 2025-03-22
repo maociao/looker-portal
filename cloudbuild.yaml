@@ -42,23 +42,6 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'gcr.io/$PROJECT_ID/looker-portal-frontend:$COMMIT_SHA']
     
-  # Get the frontend service URL for CORS configuration
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    id: 'get-frontend-url'
-    entrypoint: 'sh'
-    args:
-      - '-c'
-      - |
-        # If frontend service already exists, get its URL
-        if gcloud run services describe looker-portal-frontend --region=us-central1 &>/dev/null; then
-          FRONTEND_URL=$(gcloud run services describe looker-portal-frontend --region=us-central1 --format='value(status.url)')
-          echo "Frontend URL: $FRONTEND_URL"
-          echo "$FRONTEND_URL" > /workspace/frontend_url.txt
-        else
-          # If not, use a default domain pattern with PROJECT_NUMBER
-          echo "https://looker-portal-frontend-$PROJECT_NUMBER.us-central1.run.app" > /workspace/frontend_url.txt
-        fi
-    
   # Deploy frontend container image to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
