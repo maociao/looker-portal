@@ -25,14 +25,14 @@ steps:
       - '--memory=512Mi'
       - '--min-instances=0'
       - '--max-instances=5'
-      - '--set-env-vars=FRONTEND_URL=https://looker-portal-frontend-794967178569.us-central1.run.app,GOOGLE_CLOUD_PROJECT=afrr-portal,FIRESTORE_DATABASE_ID=afrr-portal,PROJECT_ID=$PROJECT_ID,JWT_SECRET=${_JWT_SECRET},USE_MOCK_LOOKER=${_USE_MOCK_LOOKER}'
+      - '--set-env-vars=FRONTEND_URL=https://looker-portal-frontend-$PROJECT_ID.us-central1.run.app,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,FIRESTORE_DATABASE_ID=afrr-portal,PROJECT_ID=$PROJECT_ID,JWT_SECRET=${_JWT_SECRET},USE_MOCK_LOOKER=${_USE_MOCK_LOOKER}'
       
-  # Build the frontend container image - add build args here
+  # Build the frontend container image with build args
   - name: 'gcr.io/cloud-builders/docker'
     args: [
       'build', 
       '-t', 'gcr.io/$PROJECT_ID/looker-portal-frontend:$COMMIT_SHA', 
-      '--build-arg', 'VITE_API_URL=https://looker-portal-backend-794967178569.us-central1.run.app',
+      '--build-arg', 'VITE_API_URL=https://looker-portal-backend-$PROJECT_ID.us-central1.run.app',
       '--build-arg', 'VITE_LOOKER_HOST=${_LOOKER_HOST}',
       '--build-arg', 'VITE_USE_MOCK_LOOKER=${_USE_MOCK_LOOKER}',
       './frontend'
@@ -57,7 +57,7 @@ steps:
       - '--memory=512Mi'
       - '--min-instances=0'
       - '--max-instances=5'
-      - '--set-env-vars=VITE_API_URL=https://looker-portal-backend-794967178569.us-central1.run.app,VITE_LOOKER_HOST=${_LOOKER_HOST},VITE_USE_MOCK_LOOKER=${_USE_MOCK_LOOKER}'
+      - '--set-env-vars=VITE_API_URL=https://looker-portal-backend-$PROJECT_ID.us-central1.run.app,VITE_LOOKER_HOST=${_LOOKER_HOST},VITE_USE_MOCK_LOOKER=${_USE_MOCK_LOOKER}'
       
 # Store the built images in Container Registry
 images:
@@ -67,7 +67,7 @@ images:
 # Substitution variables to be defined in the build trigger
 substitutions:
   _LOOKER_HOST: 'your-looker-instance.cloud.looker.com'
-  _BACKEND_URL: https://looker-portal-backend-794967178569.us-central1.run.app
+  _BACKEND_URL: https://looker-portal-backend-$PROJECT_ID.us-central1.run.app
   _LOOKER_EMBED_SECRET: 'SECRET_TO_BE_DEFINED'
   _JWT_SECRET: 'SECRET_TO_BE_DEFINED'
   _USE_MOCK_LOOKER: 'true'  # Toggle between 'true' and 'false'
