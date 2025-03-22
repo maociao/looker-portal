@@ -57,7 +57,8 @@ steps:
       - '--memory=512Mi'
       - '--min-instances=0'
       - '--max-instances=5'
-      - '--set-env-vars=VITE_API_URL=https://looker-portal-backend-$PROJECT_ID.us-central1.run.app,VITE_LOOKER_HOST=${_LOOKER_HOST},VITE_USE_MOCK_LOOKER=${_USE_MOCK_LOOKER}'
+      - '--set-env-vars'
+      - 'VITE_API_URL=https://looker-portal-backend-$PROJECT_ID.us-central1.run.app,VITE_LOOKER_HOST=${_LOOKER_HOST},VITE_USE_MOCK_LOOKER=${_USE_MOCK_LOOKER}'
       
 # Store the built images in Container Registry
 images:
