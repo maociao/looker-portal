@@ -9,12 +9,14 @@ steps:
   # Push the backend container image to Container Registry
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'gcr.io/$PROJECT_ID/looker-portal-backend:$COMMIT_SHA']
+    id: 'push-backend'
 
   # Export the SBOM of the backend container image
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
     args: ['artifacts', 'sbom', 'export', '--uri', 'gcr.io/$PROJECT_ID/looker-portal-backend:$COMMIT_SHA']
     id: 'sbom-backend'
+    waitFor: ['push-backend']
 
   # Deploy backend container image to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -47,12 +49,14 @@ steps:
   # Push the frontend container image to Container Registry
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'gcr.io/$PROJECT_ID/looker-portal-frontend:$COMMIT_SHA']
+    id: 'push-frontend'
     
   # Export the SBOM of the frontend container image
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
     args: ['artifacts', 'sbom', 'export', '--uri', 'gcr.io/$PROJECT_ID/looker-portal-frontend:$COMMIT_SHA']
     id: 'sbom-frontend'
+    waitFor: ['push-frontend']
 
   # Deploy frontend container image to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
