@@ -12,46 +12,11 @@ steps:
     id: 'push-backend'
 
   # Export the SBOM of the backend container image
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: gcloud
-    args: ['artifacts', 'sbom', 'export', '--uri', 'gcr.io/$PROJECT_ID/looker-portal-backend:$COMMIT_SHA']
-    id: 'sbom-backend'
-    waitFor: ['push-backend']
-
-  # Build the frontend container image with build args
-  - name: 'gcr.io/cloud-builders/docker'
-    args: [
-      'build', 
-      '-t', 'gcr.io/$PROJECT_ID/looker-portal-frontend:$COMMIT_SHA', 
-      '--build-arg', 'VITE_API_URL=https://looker-portal-backend-$PROJECT_NUMBER.us-central1.run.app',
-      '--build-arg', 'VITE_LOOKER_HOST=${_LOOKER_HOST}',
-      '--build-arg', 'VITE_USE_MOCK_LOOKER=${_USE_MOCK_LOOKER}',
-      './frontend'
-    ]
-    
-  # Push the frontend container image to Container Registry
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/looker-portal-frontend:$COMMIT_SHA']
-    id: 'push-frontend'
-    
-  # Wait for the frontend image to finish scanning
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: gcloud
-    args:
-    - 'artifacts'
-    - 'docker'
-    - 'images'
-    - 'scan'
-    - 'gcr.io/$PROJECT_ID/looker-portal-frontend:$COMMIT_SHA'
-    id: 'wait-scan-frontend'
-    waitFor: ['push-frontend']
-
-  # Export the SBOM of the frontend container image
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: gcloud
-    args: ['artifacts', 'sbom', 'export', '--uri', 'gcr.io/$PROJECT_ID/looker-portal-frontend:$COMMIT_SHA']
-    id: 'sbom-frontend'
-    waitFor: ['wait-scan-frontend']
+  # - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  #   entrypoint: gcloud
+  #   args: ['artifacts', 'sbom', 'export', '--uri', 'gcr.io/$PROJECT_ID/looker-portal-backend:$COMMIT_SHA']
+  #   id: 'sbom-backend'
+  #   waitFor: ['push-backend']
 
   # Deploy backend container image to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -70,6 +35,41 @@ steps:
       - '--max-instances=5'
       - '--set-env-vars=FRONTEND_URL=https://looker-portal-frontend-$PROJECT_NUMBER.us-central1.run.app,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,FIRESTORE_DATABASE_ID=afrr-portal,PROJECT_ID=$PROJECT_ID,JWT_SECRET=${_JWT_SECRET},USE_MOCK_LOOKER=${_USE_MOCK_LOOKER}'
       
+  # Build the frontend container image with build args
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'build', 
+      '-t', 'gcr.io/$PROJECT_ID/looker-portal-frontend:$COMMIT_SHA', 
+      '--build-arg', 'VITE_API_URL=https://looker-portal-backend-$PROJECT_NUMBER.us-central1.run.app',
+      '--build-arg', 'VITE_LOOKER_HOST=${_LOOKER_HOST}',
+      '--build-arg', 'VITE_USE_MOCK_LOOKER=${_USE_MOCK_LOOKER}',
+      './frontend'
+    ]
+    
+  # Push the frontend container image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/looker-portal-frontend:$COMMIT_SHA']
+    id: 'push-frontend'
+    
+  # Wait for the frontend image to finish scanning
+  # - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  #   entrypoint: gcloud
+  #   args:
+  #   - 'artifacts'
+  #   - 'docker'
+  #   - 'images'
+  #   - 'scan'
+  #   - 'gcr.io/$PROJECT_ID/looker-portal-frontend:$COMMIT_SHA'
+  #   id: 'wait-scan-frontend'
+  #   waitFor: ['push-frontend']
+
+  # Export the SBOM of the frontend container image
+  # - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  #   entrypoint: gcloud
+  #   args: ['artifacts', 'sbom', 'export', '--uri', 'gcr.io/$PROJECT_ID/looker-portal-frontend:$COMMIT_SHA']
+  #   id: 'sbom-frontend'
+  #   waitFor: ['wait-scan-frontend']
+
   # Deploy frontend container image to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
