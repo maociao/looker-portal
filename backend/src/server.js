@@ -30,8 +30,36 @@ if (!USE_MOCK_LOOKER) {
 // Initialize Express app
 const app = express();
 app.use(express.json());
-app.use(helmet());
-app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));
+// Update your Helmet configuration
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "https://cdnjs.cloudflare.com"],
+      connectSrc: ["'self'", process.env.LOOKER_HOST],
+      frameSrc: ["'self'", process.env.LOOKER_HOST],
+      imgSrc: ["'self'", "data:"],
+    }
+  },
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true
+  }
+}));
+
+// Enable CORS
+const allowedOrigins = [process.env.FRONTEND_URL];
+app.use(cors({ 
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true 
+}));
 
 // Initialize Firestore
 const projectId = process.env.GOOGLE_CLOUD_PROJECT; // Your project ID
@@ -57,9 +85,9 @@ const LOOKER_HOST = process.env.LOOKER_HOST;
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
-  
+
   if (!token) return res.sendStatus(401);
-  
+
   jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) return res.sendStatus(403);
     req.user = user;
@@ -78,35 +106,44 @@ app.get('/api/test-firestore', async (req, res) => {
   }
 });
 
+// Rate Limiting Middleware
+const rateLimit = require('express-rate-limit');
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 attempts per window
+  message: { message: 'Too many login attempts, please try again later' }
+});
+
 // Authentication Routes
-app.post('/api/login', async (req, res) => {
+app.post('/api/login', loginLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
-    
+
     // Find user in database
     const userSnapshot = await usersCollection.where('email', '==', email).limit(1).get();
-    
+
     if (userSnapshot.empty) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
-    
+
     const userData = userSnapshot.docs[0].data();
     const userId = userSnapshot.docs[0].id;
-    
+
     // Verify password
     const passwordMatch = await bcrypt.compare(password, userData.passwordHash);
     if (!passwordMatch) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
-    
+
     // Get business partner details
     const businessPartnerSnapshot = await businessPartnersCollection.doc(userData.businessPartnerId).get();
     if (!businessPartnerSnapshot.exists) {
       return res.status(404).json({ message: 'Business partner not found' });
     }
-    
+
     const businessPartnerData = businessPartnerSnapshot.data();
-    
+
     // Create JWT token
     const token = jwt.sign({
       userId,
@@ -114,17 +151,26 @@ app.post('/api/login', async (req, res) => {
       role: userData.role,
       businessPartnerId: userData.businessPartnerId,
       businessPartnerName: businessPartnerData.name
-    }, JWT_SECRET, { expiresIn: '8h' });
-    
-    res.json({ token, user: {
-      id: userId,
-      email: userData.email,
-      firstName: userData.firstName,
-      lastName: userData.lastName,
-      role: userData.role,
-      businessPartnerId: userData.businessPartnerId,
-      businessPartnerName: businessPartnerData.name
-    }});
+    }, JWT_SECRET, { expiresIn: '1h' });
+
+    // Refresh token mechanism
+    const refreshToken = jwt.sign({
+      userId
+    }, REFRESH_TOKEN_SECRET, {
+      expiresIn: '7d'
+    });
+
+    res.json({
+      token, user: {
+        id: userId,
+        email: userData.email,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        role: userData.role,
+        businessPartnerId: userData.businessPartnerId,
+        businessPartnerName: businessPartnerData.name
+      }
+    });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -135,32 +181,32 @@ app.post('/api/login', async (req, res) => {
 app.get('/api/looker/embed', authenticateToken, async (req, res) => {
   try {
     const { userId, businessPartnerId } = req.user;
-    
+
     // Get business partner's assigned dashboards
     const businessPartnerSnapshot = await businessPartnersCollection.doc(businessPartnerId).get();
     if (!businessPartnerSnapshot.exists) {
       return res.status(404).json({ message: 'Business partner not found' });
     }
-    
+
     const businessPartner = businessPartnerSnapshot.data();
     const assignedDashboards = businessPartner.assignedDashboards || [];
-    
+
     if (assignedDashboards.length === 0) {
       return res.status(404).json({ message: 'No dashboards assigned to this business partner' });
     }
-    
+
     // Get the first dashboard (you can modify this to return multiple)
     const dashboardId = assignedDashboards[0];
-    
+
     // Generate the signed URL for Looker SSO embedding
     const url = `/embed/dashboards/${dashboardId}`;
     const sessionLength = 3600;
     const timestamp = Math.floor(Date.now() / 1000);
     const nonce = crypto.randomBytes(16).toString('hex');
-    
+
     // Construct the string to be signed
     const strToSign = `${url}\n${sessionLength}\n${timestamp}\n${nonce}`;
-    
+
     // Create signature
     const signature = crypto
       .createHmac('sha1', LOOKER_EMBED_SECRET)
@@ -169,10 +215,10 @@ app.get('/api/looker/embed', authenticateToken, async (req, res) => {
       .replace(/\+/g, '-')
       .replace(/\//g, '_')
       .replace(/=+$/g, '');
-    
+
     // Assemble the signed URL
     const embeddedUrl = `https://${LOOKER_HOST}${url}?session_length=${sessionLength}&external_user_id=${userId}&timestamp=${timestamp}&nonce=${nonce}&signature=${signature}`;
-    
+
     res.json({ embeddedUrl });
   } catch (error) {
     console.error('Looker embed error:', error);
@@ -180,17 +226,33 @@ app.get('/api/looker/embed', authenticateToken, async (req, res) => {
   }
 });
 
+const { body, validationResult } = require('express-validator');
+
 // User Management Routes (Admin Only)
-app.get('/api/users', authenticateToken, async (req, res) => {
+app.get('/api/users',
+  authenticateToken,
+  [
+    body('email').isEmail().withMessage('Invalid email address'),
+    body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters long'),
+    body('firstName').notEmpty().withMessage('First name is required'),
+    body('lastName').notEmpty().withMessage('Last name is required'),
+    body('role').isIn(['admin', 'user']).withMessage('Invalid role'),
+    body('businessPartnerId').notEmpty().withMessage('Business partner required')
+  ],
+  async (req, res) => {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
     // Check if user is admin
     if (req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Unauthorized' });
     }
-    
+
     const usersSnapshot = await usersCollection.get();
     const users = [];
-    
+
     usersSnapshot.forEach(doc => {
       const userData = doc.data();
       users.push({
@@ -203,7 +265,7 @@ app.get('/api/users', authenticateToken, async (req, res) => {
         createdAt: userData.createdAt
       });
     });
-    
+
     res.json({ users });
   } catch (error) {
     console.error('Get users error:', error);
@@ -217,24 +279,24 @@ app.post('/api/users', authenticateToken, async (req, res) => {
     if (req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Unauthorized' });
     }
-    
+
     const { email, firstName, lastName, password, role, businessPartnerId } = req.body;
-    
+
     // Verify business partner exists
     const businessPartnerSnapshot = await businessPartnersCollection.doc(businessPartnerId).get();
     if (!businessPartnerSnapshot.exists) {
       return res.status(404).json({ message: 'Business partner not found' });
     }
-    
+
     // Check if email is already in use
     const existingUserSnapshot = await usersCollection.where('email', '==', email).limit(1).get();
     if (!existingUserSnapshot.empty) {
       return res.status(400).json({ message: 'Email already in use' });
     }
-    
+
     // Hash password
     const passwordHash = await bcrypt.hash(password, 10);
-    
+
     // Create new user
     const newUser = {
       email,
@@ -246,10 +308,10 @@ app.post('/api/users', authenticateToken, async (req, res) => {
       createdAt: new Date(),
       lastLogin: null
     };
-    
+
     const userRef = await usersCollection.add(newUser);
-    
-    res.status(201).json({ 
+
+    res.status(201).json({
       message: 'User created successfully',
       user: {
         id: userRef.id,
@@ -259,7 +321,7 @@ app.post('/api/users', authenticateToken, async (req, res) => {
         role,
         businessPartnerId,
         createdAt: newUser.createdAt
-      } 
+      }
     });
   } catch (error) {
     console.error('Create user error:', error);
@@ -274,22 +336,22 @@ app.put('/api/users/:id', authenticateToken, async (req, res) => {
     if (req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Unauthorized' });
     }
-    
+
     const userId = req.params.id;
     const { firstName, lastName, email, password, role, businessPartnerId } = req.body;
-    
+
     // Verify user exists
     const userDoc = await usersCollection.doc(userId).get();
     if (!userDoc.exists) {
       return res.status(404).json({ message: 'User not found' });
     }
-    
+
     // Verify business partner exists
     const businessPartnerSnapshot = await businessPartnersCollection.doc(businessPartnerId).get();
     if (!businessPartnerSnapshot.exists) {
       return res.status(404).json({ message: 'Business partner not found' });
     }
-    
+
     // Check if email is already in use by another user
     if (email !== userDoc.data().email) {
       const existingUserSnapshot = await usersCollection.where('email', '==', email).limit(1).get();
@@ -297,7 +359,7 @@ app.put('/api/users/:id', authenticateToken, async (req, res) => {
         return res.status(400).json({ message: 'Email already in use' });
       }
     }
-    
+
     // Prepare update data
     const updateData = {
       firstName,
@@ -306,22 +368,22 @@ app.put('/api/users/:id', authenticateToken, async (req, res) => {
       role,
       businessPartnerId
     };
-    
+
     // Only update password if provided
     if (password) {
       updateData.passwordHash = await bcrypt.hash(password, 10);
     }
-    
+
     // Update user
     await usersCollection.doc(userId).update(updateData);
-    
-    res.json({ 
+
+    res.json({
       message: 'User updated successfully',
       user: {
         id: userId,
         ...updateData,
         passwordHash: undefined // Don't return the password hash
-      } 
+      }
     });
   } catch (error) {
     console.error('Update user error:', error);
@@ -336,18 +398,18 @@ app.delete('/api/users/:id', authenticateToken, async (req, res) => {
     if (req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Unauthorized' });
     }
-    
+
     const userId = req.params.id;
-    
+
     // Verify user exists
     const userDoc = await usersCollection.doc(userId).get();
     if (!userDoc.exists) {
       return res.status(404).json({ message: 'User not found' });
     }
-    
+
     // Delete user
     await usersCollection.doc(userId).delete();
-    
+
     res.json({ message: 'User deleted successfully' });
   } catch (error) {
     console.error('Delete user error:', error);
@@ -362,10 +424,10 @@ app.get('/api/business-partners', authenticateToken, async (req, res) => {
     if (req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Unauthorized' });
     }
-    
+
     const partnersSnapshot = await businessPartnersCollection.get();
     const partners = [];
-    
+
     partnersSnapshot.forEach(doc => {
       const partnerData = doc.data();
       partners.push({
@@ -376,7 +438,7 @@ app.get('/api/business-partners', authenticateToken, async (req, res) => {
         createdAt: partnerData.createdAt
       });
     });
-    
+
     res.json({ partners });
   } catch (error) {
     console.error('Get partners error:', error);
@@ -390,9 +452,9 @@ app.post('/api/business-partners', authenticateToken, async (req, res) => {
     if (req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Unauthorized' });
     }
-    
+
     const { name, contactEmail, assignedDashboards } = req.body;
-    
+
     // Create new business partner
     const newPartner = {
       name,
@@ -400,15 +462,15 @@ app.post('/api/business-partners', authenticateToken, async (req, res) => {
       assignedDashboards: assignedDashboards || [],
       createdAt: new Date()
     };
-    
+
     const partnerRef = await businessPartnersCollection.add(newPartner);
-    
-    res.status(201).json({ 
+
+    res.status(201).json({
       message: 'Business partner created successfully',
       partner: {
         id: partnerRef.id,
         ...newPartner
-      } 
+      }
     });
   } catch (error) {
     console.error('Create partner error:', error);
@@ -423,32 +485,32 @@ app.put('/api/business-partners/:id', authenticateToken, async (req, res) => {
     if (req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Unauthorized' });
     }
-    
+
     const partnerId = req.params.id;
     const { name, contactEmail, assignedDashboards } = req.body;
-    
+
     // Verify business partner exists
     const partnerDoc = await businessPartnersCollection.doc(partnerId).get();
     if (!partnerDoc.exists) {
       return res.status(404).json({ message: 'Business partner not found' });
     }
-    
+
     // Prepare update data
     const updateData = {
       name,
       contactEmail,
       assignedDashboards: assignedDashboards || []
     };
-    
+
     // Update business partner
     await businessPartnersCollection.doc(partnerId).update(updateData);
-    
-    res.json({ 
+
+    res.json({
       message: 'Business partner updated successfully',
       partner: {
         id: partnerId,
         ...updateData
-      } 
+      }
     });
   } catch (error) {
     console.error('Update partner error:', error);
@@ -463,26 +525,26 @@ app.delete('/api/business-partners/:id', authenticateToken, async (req, res) => 
     if (req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Unauthorized' });
     }
-    
+
     const partnerId = req.params.id;
-    
+
     // Verify business partner exists
     const partnerDoc = await businessPartnersCollection.doc(partnerId).get();
     if (!partnerDoc.exists) {
       return res.status(404).json({ message: 'Business partner not found' });
     }
-    
+
     // Check if any users are associated with this business partner
     const usersSnapshot = await usersCollection.where('businessPartnerId', '==', partnerId).limit(1).get();
     if (!usersSnapshot.empty) {
-      return res.status(400).json({ 
-        message: 'Cannot delete business partner with associated users. Please reassign or delete those users first.' 
+      return res.status(400).json({
+        message: 'Cannot delete business partner with associated users. Please reassign or delete those users first.'
       });
     }
-    
+
     // Delete business partner
     await businessPartnersCollection.doc(partnerId).delete();
-    
+
     res.json({ message: 'Business partner deleted successfully' });
   } catch (error) {
     console.error('Delete partner error:', error);
@@ -497,27 +559,27 @@ app.get('/api/looker/dashboards', authenticateToken, async (req, res) => {
     if (!['admin', 'user'].includes(req.user.role)) {
       return res.status(403).json({ message: 'Unauthorized' });
     }
-    
+
     // Query Looker API for dashboards
     const result = await lookerSDK.ok(lookerSDK.all_dashboards());
-    
+
     // For non-admin users, filter to only show dashboards assigned to their business partner
     if (req.user.role !== 'admin') {
       const businessPartnerSnapshot = await businessPartnersCollection.doc(req.user.businessPartnerId).get();
       if (!businessPartnerSnapshot.exists) {
         return res.status(404).json({ message: 'Business partner not found' });
       }
-      
+
       const businessPartner = businessPartnerSnapshot.data();
       const assignedDashboards = businessPartner.assignedDashboards || [];
-      
-      const filteredDashboards = result.filter(dashboard => 
+
+      const filteredDashboards = result.filter(dashboard =>
         assignedDashboards.includes(dashboard.id.toString())
       );
-      
+
       return res.json({ dashboards: filteredDashboards });
     }
-    
+
     res.json({ dashboards: result });
   } catch (error) {
     console.error('Looker dashboards error:', error);
@@ -528,25 +590,25 @@ app.get('/api/looker/dashboards', authenticateToken, async (req, res) => {
 app.get('/api/looker/dashboards/:id', authenticateToken, async (req, res) => {
   try {
     const dashboardId = req.params.id;
-    
+
     // For non-admin users, verify they have access to this dashboard
     if (req.user.role !== 'admin') {
       const businessPartnerSnapshot = await businessPartnersCollection.doc(req.user.businessPartnerId).get();
       if (!businessPartnerSnapshot.exists) {
         return res.status(404).json({ message: 'Business partner not found' });
       }
-      
+
       const businessPartner = businessPartnerSnapshot.data();
       const assignedDashboards = businessPartner.assignedDashboards || [];
-      
+
       if (!assignedDashboards.includes(dashboardId)) {
         return res.status(403).json({ message: 'Unauthorized to access this dashboard' });
       }
     }
-    
+
     // Query Looker API for specific dashboard
     const dashboard = await lookerSDK.ok(lookerSDK.dashboard(dashboardId));
-    
+
     res.json({ dashboard });
   } catch (error) {
     console.error('Looker dashboard error:', error);
@@ -558,22 +620,22 @@ app.get('/api/looker/dashboards/:id', authenticateToken, async (req, res) => {
 app.get('/api/looker/dashboards/:id/excel', authenticateToken, async (req, res) => {
   try {
     const dashboardId = req.params.id;
-    
+
     // For non-admin users, verify they have access to this dashboard
     if (req.user.role !== 'admin') {
       const businessPartnerSnapshot = await businessPartnersCollection.doc(req.user.businessPartnerId).get();
       if (!businessPartnerSnapshot.exists) {
         return res.status(404).json({ message: 'Business partner not found' });
       }
-      
+
       const businessPartner = businessPartnerSnapshot.data();
       const assignedDashboards = businessPartner.assignedDashboards || [];
-      
+
       if (!assignedDashboards.includes(dashboardId)) {
         return res.status(403).json({ message: 'Unauthorized to access this dashboard' });
       }
     }
-    
+
     // Generate task to create the Excel file
     const task = await lookerSDK.ok(
       lookerSDK.create_dashboard_render_task({
@@ -586,7 +648,7 @@ app.get('/api/looker/dashboards/:id/excel', authenticateToken, async (req, res) 
         pdf_landscape: true
       })
     );
-    
+
     // Wait for task to complete
     let renderTask;
     let maxAttempts = 10;
@@ -602,18 +664,18 @@ app.get('/api/looker/dashboards/:id/excel', authenticateToken, async (req, res) 
       await new Promise(resolve => setTimeout(resolve, 1000));
       maxAttempts--;
     }
-    
+
     if (maxAttempts === 0) {
       throw new Error('Render task timed out');
     }
-    
+
     // Get the rendered content
     const response = await lookerSDK.ok(lookerSDK.render_task_results(task.id));
-    
+
     // Set headers for file download
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="dashboard-${dashboardId}.xlsx"`);
-    
+
     // Send the file
     res.send(response);
   } catch (error) {
@@ -625,22 +687,22 @@ app.get('/api/looker/dashboards/:id/excel', authenticateToken, async (req, res) 
 app.get('/api/looker/dashboards/:id/pdf', authenticateToken, async (req, res) => {
   try {
     const dashboardId = req.params.id;
-    
+
     // For non-admin users, verify they have access to this dashboard
     if (req.user.role !== 'admin') {
       const businessPartnerSnapshot = await businessPartnersCollection.doc(req.user.businessPartnerId).get();
       if (!businessPartnerSnapshot.exists) {
         return res.status(404).json({ message: 'Business partner not found' });
       }
-      
+
       const businessPartner = businessPartnerSnapshot.data();
       const assignedDashboards = businessPartner.assignedDashboards || [];
-      
+
       if (!assignedDashboards.includes(dashboardId)) {
         return res.status(403).json({ message: 'Unauthorized to access this dashboard' });
       }
     }
-    
+
     // Generate task to create the PDF file
     const task = await lookerSDK.ok(
       lookerSDK.create_dashboard_render_task({
@@ -653,7 +715,7 @@ app.get('/api/looker/dashboards/:id/pdf', authenticateToken, async (req, res) =>
         pdf_landscape: true
       })
     );
-    
+
     // Wait for task to complete
     let renderTask;
     let maxAttempts = 10;
@@ -669,18 +731,18 @@ app.get('/api/looker/dashboards/:id/pdf', authenticateToken, async (req, res) =>
       await new Promise(resolve => setTimeout(resolve, 1000));
       maxAttempts--;
     }
-    
+
     if (maxAttempts === 0) {
       throw new Error('Render task timed out');
     }
-    
+
     // Get the rendered content
     const response = await lookerSDK.ok(lookerSDK.render_task_results(task.id));
-    
+
     // Set headers for file download
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="dashboard-${dashboardId}.pdf"`);
-    
+
     // Send the file
     res.send(response);
   } catch (error) {
@@ -696,18 +758,18 @@ app.get('/api/looker/status', authenticateToken, async (req, res) => {
     if (req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Unauthorized' });
     }
-    
+
     // Query Looker API to verify connection
     const me = await lookerSDK.ok(lookerSDK.me());
-    
-    res.json({ 
+
+    res.json({
       status: 'connected',
       lookerUser: me.display_name,
       lookerVersion: me.looker_version
     });
   } catch (error) {
     console.error('Looker status error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       status: 'error',
       message: 'Failed to connect to Looker API'
     });
