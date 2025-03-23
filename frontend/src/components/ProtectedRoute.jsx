@@ -4,7 +4,26 @@ import { Navigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 
 const ProtectedRoute = ({ children, roles }) => {
-  const { user, loading } = useContext(AuthContext);
+  const { user, token, loading, logout } = useContext(AuthContext);
+
+  // Add JWT expiration check
+  useEffect(() => {
+    if (token) {
+      try {
+        // JWT tokens have 3 parts separated by dots
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const expirationTime = payload.exp * 1000; // Convert to milliseconds
+
+        // If token is expired, logout
+        if (Date.now() >= expirationTime) {
+          logout();
+        }
+      } catch (error) {
+        console.error('Error checking token expiration:', error);
+        logout();
+      }
+    }
+  }, [token, logout]);
 
   // Show loading spinner while checking authentication
   if (loading) {

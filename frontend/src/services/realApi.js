@@ -9,12 +9,27 @@ const api = axios.create({
   },
 });
 
+// Helper function to handle API errors
+const handleApiError = (error) => {
+  if (error.response && error.response.status === 401) {
+    // Clear local storage
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+    
+    // Redirect to login
+    window.location.href = '/login';
+  }
+  throw error;
+};
+
 // Authentication
 export const loginUser = async (email, password) => {
   try {
     const response = await api.post('/api/login', { email, password });
     return response.data;
   } catch (error) {
+    handleApiError(error);
     throw new Error(
       error.response?.data?.message || 'Failed to login'
     );
@@ -36,6 +51,7 @@ export const getLookerEmbedUrl = async (token, dashboardId) => {
     });
     return response.data;
   } catch (error) {
+    handleApiError(error);
     throw new Error(
       error.response?.data?.message || 'Failed to get dashboard URL'
     );
@@ -52,6 +68,7 @@ export const getUserDashboards = async (token) => {
     });
     return response.data;
   } catch (error) {
+    handleApiError(error);
     throw new Error(
       error.response?.data?.message || 'Failed to fetch user dashboards'
     );
@@ -68,6 +85,7 @@ export const getUsers = async (token) => {
     });
     return response.data;
   } catch (error) {
+    handleApiError(error);
     throw new Error(
       error.response?.data?.message || 'Failed to fetch users'
     );
@@ -83,6 +101,7 @@ export const createUser = async (userData, token) => {
     });
     return response.data;
   } catch (error) {
+    handleApiError(error);
     throw new Error(
       error.response?.data?.message || 'Failed to create user'
     );
@@ -98,6 +117,7 @@ export const updateUser = async (userId, userData, token) => {
     });
     return response.data;
   } catch (error) {
+    handleApiError(error);
     throw new Error(
       error.response?.data?.message || 'Failed to update user'
     );
@@ -113,6 +133,7 @@ export const deleteUser = async (userId, token) => {
     });
     return response.data;
   } catch (error) {
+    handleApiError(error);
     throw new Error(
       error.response?.data?.message || 'Failed to delete user'
     );
@@ -129,6 +150,7 @@ export const getBusinessPartners = async (token) => {
     });
     return response.data;
   } catch (error) {
+    handleApiError(error);
     throw new Error(
       error.response?.data?.message || 'Failed to fetch business partners'
     );
@@ -144,6 +166,7 @@ export const createBusinessPartner = async (partnerData, token) => {
     });
     return response.data;
   } catch (error) {
+    handleApiError(error);
     throw new Error(
       error.response?.data?.message || 'Failed to create business partner'
     );
@@ -159,6 +182,7 @@ export const updateBusinessPartner = async (partnerId, partnerData, token) => {
     });
     return response.data;
   } catch (error) {
+    handleApiError(error);
     throw new Error(
       error.response?.data?.message || 'Failed to update business partner'
     );
@@ -174,6 +198,7 @@ export const deleteBusinessPartner = async (partnerId, token) => {
     });
     return response.data;
   } catch (error) {
+    handleApiError(error);
     throw new Error(
       error.response?.data?.message || 'Failed to delete business partner'
     );
