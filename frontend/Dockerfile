@@ -29,15 +29,12 @@ FROM nginx:alpine
 # Copy built files from build stage
 COPY --from=build /app/dist /usr/share/nginx/html
 
-RUN echo 'server { \
-  listen 8080; \
-  location / { \
-    root /usr/share/nginx/html; \
-    index index.html; \
-    try_files $uri $uri/ /index.html; \
-  } \
-}' > /etc/nginx/conf.d/default.conf
+COPY nginx.conf.template /etc/nginx/templates/nginx.conf.template
+
+COPY entrypoint.sh /entrypoint.sh
+
+RUN chmod +x /entrypoint.sh
 
 EXPOSE 8080
 
-CMD ["nginx", "-g", "daemon off;"]
+ENTRYPOINT ["/entrypoint.sh"]
