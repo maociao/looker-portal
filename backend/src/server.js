@@ -201,7 +201,7 @@ app.post('/api/refresh-token', async (req, res) => {
         return res.status(404).json({ message: 'User not found' });
       }
       
-      const userData = userDoc.data();setToken
+      const userData = userDoc.data();
       
       // Get business partner details
       const businessPartnerSnapshot = await businessPartnersCollection
