@@ -11,6 +11,7 @@ users:
     businessPartnerId: string (reference to business_partners collection)
     createdAt: timestamp
     lastLogin: timestamp (nullable)
+    failedLoginAttempts: integer (nullable)
 
 # Collection: businessPartners
 businessPartners:

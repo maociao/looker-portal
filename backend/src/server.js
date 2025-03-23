@@ -50,7 +50,7 @@ app.use(helmet({
 
 // Enable CORS
 const allowedOrigins = [process.env.FRONTEND_URL];
-app.use(cors({ 
+app.use(cors({
   origin: (origin, callback) => {
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
@@ -58,7 +58,7 @@ app.use(cors({
       callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: true 
+  credentials: true
 }));
 
 // Initialize Firestore
@@ -135,8 +135,36 @@ app.post('/api/login', loginLimiter, async (req, res) => {
     // Verify password
     const passwordMatch = await bcrypt.compare(password, userData.passwordHash);
     if (!passwordMatch) {
+      // Increment failed login attempts
+      const failedAttempts = (userData.failedLoginAttempts || 0) + 1;
+      await usersCollection.doc(userId).update({
+        failedLoginAttempts: failedAttempts,
+        lastFailedLogin: new Date()
+      });
+
+      // If too many failures, lock the account
+      if (failedAttempts >= 5) {
+        await usersCollection.doc(userId).update({
+          accountLocked: true,
+          lockExpiration: new Date(Date.now() + 30 * 60 * 1000) // 30 minutes
+        });
+        return res.status(401).json({ message: 'Account locked. Please try again later.' });
+      }
+
       return res.status(401).json({ message: 'Invalid credentials' });
     }
+
+    // If account is locked, check if it's expired
+    if (userData.accountLocked && userData.lockExpiration > new Date()) {
+      return res.status(401).json({ message: 'Account locked. Please try again later.' });
+    }
+    
+    // Reset failed attempts on successful login
+    await usersCollection.doc(userId).update({
+      failedLoginAttempts: 0,
+      accountLocked: false,
+      lastLogin: new Date()
+    });
 
     // Get business partner details
     const businessPartnerSnapshot = await businessPartnersCollection.doc(userData.businessPartnerId).get();
@@ -153,7 +181,7 @@ app.post('/api/login', loginLimiter, async (req, res) => {
       role: userData.role,
       businessPartnerId: userData.businessPartnerId,
       businessPartnerName: businessPartnerData.name
-    }, JWT_SECRET, { expiresIn: '1h' });
+    }, JWT_SECRET, { expiresIn: '15m' });
 
     // Refresh token mechanism
     const refreshToken = jwt.sign({
@@ -185,34 +213,34 @@ app.post('/api/login', loginLimiter, async (req, res) => {
 app.post('/api/refresh-token', async (req, res) => {
   try {
     const { refreshToken } = req.body;
-    
+
     if (!refreshToken) {
       return res.status(401).json({ message: 'Refresh token is required' });
     }
-    
+
     // Verify the refresh token
     jwt.verify(refreshToken, REFRESH_TOKEN_SECRET, async (err, decoded) => {
       if (err) return res.status(403).json({ message: 'Invalid refresh token' });
-      
+
       // Find user in database to ensure they still exist and have access
       const userDoc = await usersCollection.doc(decoded.userId).get();
-      
+
       if (!userDoc.exists) {
         return res.status(404).json({ message: 'User not found' });
       }
-      
+
       const userData = userDoc.data();
-      
+
       // Get business partner details
       const businessPartnerSnapshot = await businessPartnersCollection
         .doc(userData.businessPartnerId).get();
-      
+
       if (!businessPartnerSnapshot.exists) {
         return res.status(404).json({ message: 'Business partner not found' });
       }
-      
+
       const businessPartnerData = businessPartnerSnapshot.data();
-      
+
       // Create new access token (shorter lived)
       const token = jwt.sign({
         userId: decoded.userId,
@@ -220,8 +248,8 @@ app.post('/api/refresh-token', async (req, res) => {
         role: userData.role,
         businessPartnerId: userData.businessPartnerId,
         businessPartnerName: businessPartnerData.name
-      }, JWT_SECRET, { expiresIn: '1h' });
-      
+      }, JWT_SECRET, { expiresIn: '15m' });
+
       // Return the new access token
       res.json({ token });
     });
@@ -321,67 +349,74 @@ app.post('/api/users',
     body('firstName').notEmpty().withMessage('First name is required'),
     body('lastName').notEmpty().withMessage('Last name is required'),
     body('role').isIn(['admin', 'user']).withMessage('Invalid role'),
-    body('businessPartnerId').notEmpty().withMessage('Business partner required')
+    body('businessPartnerId').notEmpty().withMessage('Business partner required'),
+    body('password')
+      .isLength({ min: 10 }).withMessage('Password must be at least 10 characters long')
+      .matches(/[A-Z]/).withMessage('Password must contain at least one uppercase letter')
+      .matches(/[a-z]/).withMessage('Password must contain at least one lowercase letter')
+      .matches(/[0-9]/).withMessage('Password must contain at least one number')
+      .matches(/[^A-Za-z0-9]/).withMessage('Password must contain at least one special character'),
   ],
   async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-    // Check if user is admin
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Unauthorized' });
-    }
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+      // Check if user is admin
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Unauthorized' });
+      }
 
-    const { email, firstName, lastName, password, role, businessPartnerId } = req.body;
+      const { email, firstName, lastName, password, role, businessPartnerId } = req.body;
 
-    // Verify business partner exists
-    const businessPartnerSnapshot = await businessPartnersCollection.doc(businessPartnerId).get();
-    if (!businessPartnerSnapshot.exists) {
-      return res.status(404).json({ message: 'Business partner not found' });
-    }
+      // Verify business partner exists
+      const businessPartnerSnapshot = await businessPartnersCollection.doc(businessPartnerId).get();
+      if (!businessPartnerSnapshot.exists) {
+        return res.status(404).json({ message: 'Business partner not found' });
+      }
 
-    // Check if email is already in use
-    const existingUserSnapshot = await usersCollection.where('email', '==', email).limit(1).get();
-    if (!existingUserSnapshot.empty) {
-      return res.status(400).json({ message: 'Email already in use' });
-    }
+      // Check if email is already in use
+      const existingUserSnapshot = await usersCollection.where('email', '==', email).limit(1).get();
+      if (!existingUserSnapshot.empty) {
+        return res.status(400).json({ message: 'Email already in use' });
+      }
 
-    // Hash password
-    const passwordHash = await bcrypt.hash(password, 10);
+      // Hash password
+      const passwordHash = await bcrypt.hash(password, 10);
 
-    // Create new user
-    const newUser = {
-      email,
-      firstName,
-      lastName,
-      passwordHash,
-      role,
-      businessPartnerId,
-      createdAt: new Date(),
-      lastLogin: null
-    };
-
-    const userRef = await usersCollection.add(newUser);
-
-    res.status(201).json({
-      message: 'User created successfully',
-      user: {
-        id: userRef.id,
+      // Create new user
+      const newUser = {
         email,
         firstName,
         lastName,
+        passwordHash,
         role,
         businessPartnerId,
-        createdAt: newUser.createdAt
-      }
-    });
-  } catch (error) {
-    console.error('Create user error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
+        createdAt: new Date(),
+        lastLogin: null,
+        failedLoginAttempts: 0
+      };
+
+      const userRef = await usersCollection.add(newUser);
+
+      res.status(201).json({
+        message: 'User created successfully',
+        user: {
+          id: userRef.id,
+          email,
+          firstName,
+          lastName,
+          role,
+          businessPartnerId,
+          createdAt: newUser.createdAt
+        }
+      });
+    } catch (error) {
+      console.error('Create user error:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  });
 
 // User Update Route
 app.put('/api/users/:id', authenticateToken, async (req, res) => {
