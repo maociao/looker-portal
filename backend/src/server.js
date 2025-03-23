@@ -35,7 +35,7 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "https://cdnjs.cloudflare.com"],
+      scriptSrc: ["'self'",],
       connectSrc: ["'self'", process.env.LOOKER_HOST],
       frameSrc: ["'self'", process.env.LOOKER_HOST],
       imgSrc: ["'self'", "data:"],
