@@ -1,6 +1,7 @@
 import React, { useContext, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { APP_NAME } from '../config/env';
 
 // shadcn components
 import { Button } from "@/components/ui/button";
@@ -43,7 +44,7 @@ const Navbar = () => {
           {/* Logo/Brand - Links to role-specific home */}
           <div>
             <Link to={getHomeRoute()} className="text-lg font-bold text-gray-800 hover:text-primary">
-              Looker Portal
+              {APP_NAME}
             </Link>
           </div>
 

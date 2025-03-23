@@ -5,8 +5,8 @@ server {
     index index.html;
 
     # Debug header to verify environment variables
-    add_header X-Debug-API-URL "${VITE_API_URL}" always;
-    add_header X-Debug-Looker-Host "${VITE_LOOKER_HOST}" always;
+    # add_header X-Debug-API-URL "${VITE_API_URL}" always;
+    # add_header X-Debug-Looker-Host "${VITE_LOOKER_HOST}" always;
 
     # Dynamic CSP header
     add_header Content-Security-Policy "default-src 'self'; script-src 'self'; connect-src 'self' ${VITE_API_URL}; frame-src 'self' https://${VITE_LOOKER_HOST};" always;

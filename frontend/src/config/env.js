@@ -17,3 +17,5 @@ const getEnvVar = (key, defaultValue) => {
   export const LOOKER_HOST = getEnvVar('VITE_LOOKER_HOST', 'mock.looker.com');
   export const USE_MOCK_LOOKER = (getEnvVar('VITE_USE_MOCK_LOOKER', 'true') === 'true');
   export const USE_MOCK_API = (getEnvVar('VITE_USE_MOCK_API', 'false') === 'true');
+  export const APP_NAME = getEnvVar('VITE_APP_NAME', 'Looker Portal');
+  export const DEPLOY_REGION = getEnvVar('VITE_DEPLOY_REGION', 'us-central1');

@@ -1,16 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-<!-- In index.html -->
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Looker Partner Portal</title>
-    <!-- Load runtime environment variables -->
-    <script src="/env-config.js"></script>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+
+<head>
+  <!-- In index.html -->
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title id="app-title">Loading...</title>
+  <!-- Load runtime environment variables -->
+  <script src="/env-config.js"></script>
+  <script>
+    // Set the page title dynamically based on the app name
+    document.addEventListener('DOMContentLoaded', () => {
+      const appName = window.ENV?.VITE_APP_NAME || 'Looker Portal';
+      document.getElementById('app-title').textContent = appName;
+      document.title = appName;
+    });
+  </script>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+
 </html>
