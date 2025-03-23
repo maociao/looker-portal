@@ -39,7 +39,8 @@ async function initializeDatabase() {
       role: "admin",
       businessPartnerId: partnerRef.id,
       createdAt: new Date(),
-      lastLogin: null
+      lastLogin: null,
+      failedLoginAttempts: 0
     });
 
     console.log(`Created admin user with ID: ${userRef.id}`);
@@ -66,7 +67,8 @@ async function initializeDatabase() {
       role: "user",
       businessPartnerId: partnerRef.id,
       createdAt: new Date(),
-      lastLogin: null
+      lastLogin: null,
+      failedLoginAttempts: 0
     });
 
     console.log(`Created test user with ID: ${userRef.id}`);
