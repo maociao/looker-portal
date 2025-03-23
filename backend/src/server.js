@@ -201,7 +201,7 @@ app.post('/api/refresh-token', async (req, res) => {
         return res.status(404).json({ message: 'User not found' });
       }
       
-      const userData = userDoc.data();
+      const userData = userDoc.data();setToken
       
       // Get business partner details
       const businessPartnerSnapshot = await businessPartnersCollection
@@ -280,25 +280,9 @@ app.get('/api/looker/embed', authenticateToken, async (req, res) => {
   }
 });
 
-const { body, validationResult } = require('express-validator');
-
 // User Management Routes (Admin Only)
-app.get('/api/users',
-  authenticateToken,
-  [
-    body('email').isEmail().withMessage('Invalid email address'),
-    body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters long'),
-    body('firstName').notEmpty().withMessage('First name is required'),
-    body('lastName').notEmpty().withMessage('Last name is required'),
-    body('role').isIn(['admin', 'user']).withMessage('Invalid role'),
-    body('businessPartnerId').notEmpty().withMessage('Business partner required')
-  ],
-  async (req, res) => {
+app.get('/api/users', authenticateToken, async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
     // Check if user is admin
     if (req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Unauthorized' });
@@ -327,8 +311,24 @@ app.get('/api/users',
   }
 });
 
-app.post('/api/users', authenticateToken, async (req, res) => {
+const { body, validationResult } = require('express-validator');
+
+app.post('/api/users',
+  authenticateToken,
+  [
+    body('email').isEmail().withMessage('Invalid email address'),
+    body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters long'),
+    body('firstName').notEmpty().withMessage('First name is required'),
+    body('lastName').notEmpty().withMessage('Last name is required'),
+    body('role').isIn(['admin', 'user']).withMessage('Invalid role'),
+    body('businessPartnerId').notEmpty().withMessage('Business partner required')
+  ],
+  async (req, res) => {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
     // Check if user is admin
     if (req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Unauthorized' });
