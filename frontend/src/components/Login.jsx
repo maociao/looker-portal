@@ -15,7 +15,7 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { user, setUser, setToken } = useContext(AuthContext);
+  const { user, setUser, setToken, setRefreshToken } = useContext(AuthContext);
   const navigate = useNavigate();
 
   // If already logged in, redirect to appropriate page based on role
