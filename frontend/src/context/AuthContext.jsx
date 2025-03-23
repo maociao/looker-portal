@@ -20,10 +20,13 @@ export const AuthProvider = ({ children }) => {
         refreshToken 
       });
       
-      const { accessToken } = response.data;
-      setToken(accessToken);
-      localStorage.setItem('token', accessToken);
-      return true;
+      if (response.data && response.data.token) {
+        const newToken = response.data.token;
+        setToken(newToken);
+        localStorage.setItem('token', newToken);
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error('Token refresh failed:', error);
       logout(); // If refresh fails, force logout
@@ -58,6 +61,12 @@ export const AuthProvider = ({ children }) => {
             // Update the request with new token and retry
             originalRequest.headers['Authorization'] = `Bearer ${token}`;
             return axios(originalRequest);
+          } else {
+            // Force redirect to login if refresh fails
+            logout();
+            // Optional: redirect to login page here if using outside React Router
+            //window.location.href = '/login';
+            return Promise.reject(error);
           }
         }
         
@@ -69,7 +78,7 @@ export const AuthProvider = ({ children }) => {
     return () => {
       axios.interceptors.response.eject(interceptor);
     };
-  }, [refreshAccessToken, token]);
+  }, [refreshAccessToken, token, logout]);
 
   // Check for existing tokens on component mount
   useEffect(() => {
@@ -79,11 +88,28 @@ export const AuthProvider = ({ children }) => {
     
     if (storedToken && storedUser) {
       try {
-        setToken(storedToken);
-        setRefreshToken(storedRefreshToken);
-        setUser(JSON.parse(storedUser));
+        // Check if token is expired before setting it
+        const payload = JSON.parse(atob(storedToken.split('.')[1]));
+        const expirationTime = payload.exp * 1000; // Convert to milliseconds
+        
+        if (Date.now() < expirationTime) {
+          // Token is still valid
+          setToken(storedToken);
+          setRefreshToken(storedRefreshToken);
+          setUser(JSON.parse(storedUser));
+        } else {
+          // Token is expired, try to refresh
+          setRefreshToken(storedRefreshToken);
+          refreshAccessToken().catch(() => {
+            // Clear invalid data if refresh fails
+            localStorage.removeItem('token');
+            localStorage.removeItem('refreshToken');
+            localStorage.removeItem('user');
+          });
+        }
       } catch (error) {
         // Clear invalid data
+        console.error('Error parsing stored authentication data:', error);
         localStorage.removeItem('token');
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('user');
@@ -91,7 +117,7 @@ export const AuthProvider = ({ children }) => {
     }
     
     setLoading(false);
-  }, []);
+  }, [refreshAccessToken]);
 
   return (
     <AuthContext.Provider value={{ 
