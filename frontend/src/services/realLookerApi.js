@@ -10,6 +10,20 @@ const api = axios.create({
   },
 });
 
+// Helper function to handle API errors
+const handleApiError = (error) => {
+  if (error.response && error.response.status === 401) {
+    // Clear local storage
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+    
+    // Redirect to login
+    window.location.href = '/login';
+  }
+  throw error;
+};
+
 /**
  * Get all available Looker dashboards
  * @param {string} token - JWT authentication token
@@ -24,6 +38,7 @@ export const getLookerDashboards = async (token) => {
     });
     return response.data.dashboards;
   } catch (error) {
+    handleApiError(error);
     throw new Error(
       error.response?.data?.message || 'Failed to fetch dashboards'
     );
@@ -45,6 +60,7 @@ export const getLookerDashboardById = async (dashboardId, token) => {
     });
     return response.data.dashboard;
   } catch (error) {
+    handleApiError(error);
     throw new Error(
       error.response?.data?.message || 'Failed to fetch dashboard'
     );
@@ -67,6 +83,7 @@ export const downloadDashboardExcel = async (dashboardId, token) => {
     });
     return response.data;
   } catch (error) {
+    handleApiError(error);
     throw new Error(
       error.response?.data?.message || 'Failed to download Excel'
     );
@@ -89,6 +106,7 @@ export const downloadDashboardPdf = async (dashboardId, token) => {
     });
     return response.data;
   } catch (error) {
+    handleApiError(error);
     throw new Error(
       error.response?.data?.message || 'Failed to download PDF'
     );
@@ -109,6 +127,7 @@ export const testLookerConnection = async (token) => {
     });
     return response.data;
   } catch (error) {
+    handleApiError(error);
     throw new Error(
       error.response?.data?.message || 'Failed to connect to Looker API'
     );
