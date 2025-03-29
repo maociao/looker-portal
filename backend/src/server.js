@@ -29,6 +29,10 @@ if (!USE_MOCK_LOOKER) {
 
 // Initialize Express app
 const app = express();
+
+// Trust the X-Forwarded-For header from Cloud Run proxy
+app.set('trust proxy', true);
+
 app.use(express.json());
 
 // Enable CORS
