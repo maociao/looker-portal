@@ -21,4 +21,9 @@ server {
         expires 1y;
         add_header Cache-Control "public, max-age=31536000, immutable";
     }
+
+    # Add this for the index.html file
+    location = /index.html {
+        add_header Cache-Control "no-cache, must-revalidate";
+    }
 }
