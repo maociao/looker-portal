@@ -2,20 +2,23 @@
 <html lang="en">
 
 <head>
-  <!-- In index.html -->
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title id="app-title">Loading...</title>
+  <title>Looker Portal</title>
   <!-- Load runtime environment variables -->
   <script src="/env-config.js"></script>
   <script>
+    // Set default ENV values if not provided
+    window.ENV = window.ENV || {};
+    window.ENV.VITE_APP_NAME = window.ENV.VITE_APP_NAME || 'Looker Portal';
+    window.ENV.VITE_API_URL = window.ENV.VITE_API_URL || 'http://localhost:8080';
+    window.ENV.VITE_LOOKER_HOST = window.ENV.VITE_LOOKER_HOST || 'mock.looker.com';
+    window.ENV.VITE_USE_MOCK_LOOKER = window.ENV.VITE_USE_MOCK_LOOKER || 'true';
+    window.ENV.VITE_DEPLOY_REGION = window.ENV.VITE_DEPLOY_REGION || 'us-central1';
+    
     // Set the page title dynamically based on the app name
-    document.addEventListener('DOMContentLoaded', () => {
-      const appName = window.ENV?.VITE_APP_NAME || 'Looker Portal';
-      document.getElementById('app-title').textContent = appName;
-      document.title = appName;
-    });
+    document.title = window.ENV.VITE_APP_NAME;
   </script>
 </head>
 

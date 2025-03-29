@@ -1,5 +1,5 @@
 // src/App.jsx
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
 // Components
@@ -11,6 +11,9 @@ import ProtectedRoute from './components/ProtectedRoute';
 
 // Context
 import { AuthProvider, AuthContext } from './context/AuthContext';
+
+// Import APP_NAME from config
+import { APP_NAME } from './config/env';
 
 // Root redirect component that uses the auth context
 const RootRedirect = () => {
@@ -24,6 +27,11 @@ const RootRedirect = () => {
 };
 
 function App() {
+  // Set the document title when the component mounts
+  useEffect(() => {
+    document.title = APP_NAME || 'Looker Portal';
+  }, []);
+
   return (
     <div className="min-h-screen bg-background font-sans antialiased">
       <AuthProvider>

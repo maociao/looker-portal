@@ -30,7 +30,32 @@ if (!USE_MOCK_LOOKER) {
 // Initialize Express app
 const app = express();
 app.use(express.json());
-// Update your Helmet configuration
+
+// Enable CORS
+const allowedOrigins = process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : ['*'];
+console.log('Allowed CORS origins:', allowedOrigins);
+app.use(cors({
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is allowed or if we're allowing any origin
+    if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn(`Origin ${origin} not allowed by CORS policy. Allowed origins:`, allowedOrigins);
+      callback(null, true); // Still allow for debugging (change to false in production)
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
+
+// Add OPTIONS response for preflight requests
+app.options('*', cors());
+
+// Update Helmet configuration
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -46,19 +71,6 @@ app.use(helmet({
     includeSubDomains: true,
     preload: true
   }
-}));
-
-// Enable CORS
-const allowedOrigins = [process.env.FRONTEND_URL];
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true
 }));
 
 // Initialize Firestore

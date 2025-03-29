@@ -32,17 +32,18 @@ steps:
       - '--memory=512Mi'
       - '--min-instances=0'
       - '--max-instances=5'
-      - '--set-env-vars=FRONTEND_URL=https://${_APP_NAME_LOWER}-frontend-$PROJECT_NUMBER.${_DEPLOY_REGION}.run.app,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,FIRESTORE_DATABASE_ID=${_APP_NAME_LOWER},PROJECT_ID=$PROJECT_ID,JWT_SECRET=${_JWT_SECRET},USE_MOCK_LOOKER=${_USE_MOCK_LOOKER},REFRESH_TOKEN_SECRET=${_REFRESH_TOKEN_SECRET}'
+      - '--set-env-vars=FRONTEND_URL=https://${_APP_NAME_LOWER}-frontend-$PROJECT_NUMBER.${_DEPLOY_REGION}.run.app,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,FIRESTORE_DATABASE_ID=${_APP_NAME_LOWER},PROJECT_ID=$PROJECT_ID,JWT_SECRET=${_JWT_SECRET},USE_MOCK_LOOKER=${_USE_MOCK_LOOKER},REFRESH_TOKEN_SECRET=${_REFRESH_TOKEN_SECRET},LOOKER_HOST=${_LOOKER_HOST},LOOKER_EMBED_SECRET=${_LOOKER_EMBED_SECRET}'
       
   # Build the frontend container image with build args
   - name: 'gcr.io/cloud-builders/docker'
     args: [
       'build', 
       '-t', 'gcr.io/$PROJECT_ID/${_APP_NAME_LOWER}-frontend:$COMMIT_SHA', 
-      '--build-arg', 'VITE_API_URL=https://${_APP_NAME_LOWER}-backend-$PROJECT_NUMBER.us-central1.run.app',
+      '--build-arg', 'VITE_API_URL=https://${_APP_NAME_LOWER}-backend-$PROJECT_NUMBER.${_DEPLOY_REGION}.run.app',
       '--build-arg', 'VITE_LOOKER_HOST=${_LOOKER_HOST}',
       '--build-arg', 'VITE_USE_MOCK_LOOKER=${_USE_MOCK_LOOKER}',
       '--build-arg', 'VITE_APP_NAME=${_APP_NAME}',
+      '--build-arg', 'VITE_APP_NAME_LOWER=${_APP_NAME_LOWER}',
       '--build-arg', 'VITE_DEPLOY_REGION=${_DEPLOY_REGION}',
       './frontend'
     ]
@@ -87,7 +88,7 @@ steps:
       - '--min-instances=0'
       - '--max-instances=5'
       - '--set-env-vars'
-      - 'VITE_API_URL=https://${_APP_NAME_LOWER}-backend-$PROJECT_NUMBER.us-central1.run.app,VITE_LOOKER_HOST=${_LOOKER_HOST},VITE_USE_MOCK_LOOKER=${_USE_MOCK_LOOKER}'
+      - 'VITE_API_URL=https://${_APP_NAME_LOWER}-backend-$PROJECT_NUMBER.${_DEPLOY_REGION}.run.app,VITE_LOOKER_HOST=${_LOOKER_HOST},VITE_USE_MOCK_LOOKER=${_USE_MOCK_LOOKER},VITE_APP_NAME=${_APP_NAME},VITE_APP_NAME_LOWER=${_APP_NAME_LOWER},VITE_DEPLOY_REGION=${_DEPLOY_REGION}'
       
 # Store the built images in Container Registry
 images:
@@ -97,7 +98,6 @@ images:
 # Substitution variables to be defined in the build trigger
 substitutions:
   _LOOKER_HOST: 'your-looker-instance.cloud.looker.com'
-  _BACKEND_URL: https://looker-portal-backend-$PROJECT_NUMBER.us-central1.run.app
   _LOOKER_EMBED_SECRET: 'SECRET_TO_BE_DEFINED'
   _JWT_SECRET: 'SECRET_TO_BE_DEFINED'
   _REFRESH_TOKEN_SECRET: 'SECRET_TO_BE_DEFINED'
@@ -105,3 +105,4 @@ substitutions:
   _APP_NAME: 'Looker Portal'
   _APP_NAME_LOWER: 'looker-portal'
   _DEPLOY_REGION: 'us-central1'
+  _BACKEND_URL: https://${_APP_NAME_LOWER}-backend-$PROJECT_NUMBER.${_DEPLOY_REGION}.run.app
