@@ -2,6 +2,7 @@ import React, { useState, useContext } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { loginUser } from '../services/api';
+import { APP_NAME } from '../config/env';
 
 // shadcn components
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -58,7 +59,7 @@ const Login = () => {
     <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold">Looker Portal</h1>
+          <h1 className="text-3xl font-bold">{APP_NAME}</h1>
         </div>
         
         {error && (

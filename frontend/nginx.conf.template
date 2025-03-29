@@ -4,16 +4,22 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
-    # Debug header to verify environment variables
-    add_header X-Debug-API-URL "${VITE_API_URL}" always;
-    add_header X-Debug-Looker-Host "${VITE_LOOKER_HOST}" always;
-
-    # Dynamic CSP header
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; connect-src 'self' ${VITE_API_URL}; frame-src 'self' https://${VITE_LOOKER_HOST};" always;
+    # Add headers for security and CORS
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; connect-src 'self' ${VITE_API_URL}; frame-src 'self' https://${VITE_LOOKER_HOST}; style-src 'self' 'unsafe-inline';" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-XSS-Protection "1; mode=block" always;
     
     # Handle SPA routing
     location / {
         try_files $uri $uri/ /index.html;
+    }
+
+    # Load env-config.js first
+    location = /index.html {
+        add_header Cache-Control "no-cache, must-revalidate";
+        sub_filter '</head>' '<script src="/env-config.js"></script></head>';
+        sub_filter_once on;
     }
 
     # Cache control for static assets
@@ -22,8 +28,10 @@ server {
         add_header Cache-Control "public, max-age=31536000, immutable";
     }
 
-    # Add this for the index.html file
-    location = /index.html {
-        add_header Cache-Control "no-cache, must-revalidate";
+    # Don't cache env-config.js
+    location = /env-config.js {
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        add_header Pragma "no-cache";
+        add_header Expires "0";
     }
 }
