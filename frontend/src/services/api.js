@@ -5,6 +5,7 @@ import { USE_MOCK_API, USE_MOCK_LOOKER } from '../config/env';
 
 // Export all API functions, using either real or mock implementation
 export const loginUser = USE_MOCK_API ? mockApi.loginUser : realApi.loginUser;
+export const changePassword = USE_MOCK_API ? mockApi.changePassword : realApi.changePassword;
 export const getLookerEmbedUrl = USE_MOCK_LOOKER ? mockApi.getLookerEmbedUrl : realApi.getLookerEmbedUrl;
 export const getUserDashboards = USE_MOCK_LOOKER ? mockApi.getUserDashboards : realApi.getUserDashboards;
 export const getUsers = USE_MOCK_API ? mockApi.getUsers : realApi.getUsers;

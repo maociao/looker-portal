@@ -60,21 +60,21 @@ const Navbar = () => {
             {user ? (
               <>
                 {user.role === 'admin' && (
-                  <Link 
+                  <Link
                     to="/admin"
                     className="text-sm font-medium text-gray-600 hover:text-primary"
                   >
                     Admin Panel
                   </Link>
                 )}
-                
-                <Link 
+
+                <Link
                   to="/dashboard"
                   className="text-sm font-medium text-gray-600 hover:text-primary"
                 >
                   Dashboard
                 </Link>
-                
+
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="flex items-center gap-1">
@@ -89,6 +89,10 @@ const Navbar = () => {
                     <DropdownMenuLabel className="text-xs text-gray-500">
                       {user.businessPartnerName}
                     </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link to="/profile">My Profile</Link>
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleLogout}>
                       Logout
@@ -111,7 +115,7 @@ const Navbar = () => {
               {user ? (
                 <>
                   {user.role === 'admin' && (
-                    <Link 
+                    <Link
                       to="/admin"
                       className="px-2 py-1 text-sm font-medium text-gray-600 hover:text-primary"
                       onClick={toggleMenu}
@@ -119,29 +123,37 @@ const Navbar = () => {
                       Admin Panel
                     </Link>
                   )}
-                  
-                  <Link 
+
+                  <Link
                     to="/dashboard"
                     className="px-2 py-1 text-sm font-medium text-gray-600 hover:text-primary"
                     onClick={toggleMenu}
                   >
                     Dashboard
                   </Link>
-                  
+
                   <div className="px-2 py-1 text-sm font-medium text-gray-600">
                     {`${user.firstName} ${user.lastName}`}
                   </div>
-                  
+
                   <div className="px-2 py-1 text-xs text-gray-500">
                     {user.email}
                   </div>
-                  
+
                   <div className="px-2 py-1 text-xs text-gray-500">
                     {user.businessPartnerName}
                   </div>
-                  
-                  <Button 
-                    variant="ghost" 
+
+                  <Link
+                    to="/profile"
+                    className="px-2 py-1 text-sm font-medium text-gray-600 hover:text-primary"
+                    onClick={toggleMenu}
+                  >
+                    My Profile
+                  </Link>
+
+                  <Button
+                    variant="ghost"
                     className="justify-start px-2"
                     onClick={handleLogout}
                   >

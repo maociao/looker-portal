@@ -36,6 +36,26 @@ export const loginUser = async (email, password) => {
   }
 };
 
+// Password Change
+export const changePassword = async (currentPassword, newPassword, token) => {
+  try {
+    const response = await api.post('/api/change-password', 
+      { currentPassword, newPassword }, 
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    handleApiError(error);
+    throw new Error(
+      error.response?.data?.message || 'Failed to change password'
+    );
+  }
+};
+
 // Looker Embedding
 export const getLookerEmbedUrl = async (token, dashboardId) => {
   try {
