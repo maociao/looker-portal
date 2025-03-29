@@ -1,3 +1,4 @@
+require('dotenv').config();
 const { Firestore } = require('@google-cloud/firestore');
 const bcrypt = require('bcryptjs');
 
