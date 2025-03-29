@@ -50,7 +50,7 @@ async function initializeDatabase() {
     partnerRef = await businessPartnersCollection.add({
       name: "Test Company",
       contactEmail: "user@testcompany.com",
-      assignedDashboards: ["dashboard1", "dashboard2"],
+      assignedDashboards: ["1", "2"],
       createdAt: new Date()
     });
 
