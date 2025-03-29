@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 
 // Components
 import Login from './components/Login';
+import UserProfile from './components/UserProfile';
 import Dashboard from './components/Dashboard';
 import AdminPanel from './components/AdminPanel';
 import Navbar from './components/Navbar';
@@ -18,11 +19,11 @@ import { APP_NAME } from './config/env';
 // Root redirect component that uses the auth context
 const RootRedirect = () => {
   const { user } = React.useContext(AuthContext);
-  
+
   // Redirect based on user role
   if (!user) return <Navigate to="/login" replace />;
-  return user.role === 'admin' ? 
-    <Navigate to="/admin" replace /> : 
+  return user.role === 'admin' ?
+    <Navigate to="/admin" replace /> :
     <Navigate to="/dashboard" replace />;
 };
 
@@ -51,6 +52,11 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="/" element={<RootRedirect />} />
+              <Route path="/profile" element={
+                <ProtectedRoute>
+                  <UserProfile />
+                </ProtectedRoute>
+              } />
             </Routes>
           </main>
         </Router>

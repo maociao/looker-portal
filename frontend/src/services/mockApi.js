@@ -97,6 +97,20 @@ export const loginUser = async (email, password) => {
   });
 };
 
+// Password Change
+export const changePassword = async (currentPassword, newPassword, token) => {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      // In mock mode, accept "password" as the current password
+      if (currentPassword === 'password' || currentPassword === 'admin123') {
+        resolve({ message: 'Password changed successfully' });
+      } else {
+        reject(new Error('Current password is incorrect'));
+      }
+    }, 800); // Simulate network delay
+  });
+};
+
 // Looker Embedding
 export const getLookerEmbedUrl = async (token, dashboardId) => {
   return new Promise((resolve) => {
