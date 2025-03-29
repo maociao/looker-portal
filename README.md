@@ -1,6 +1,6 @@
 # Looker Portal
 
-A customizable web application with RBAC and JWT authentication controls that enables secure external access to Looker dashboards hosted on a private Looker instance via Looker embed URLs.
+A customizable web application that enables secure external access to Looker dashboards hosted on a private Looker instance via Looker embed URLs.
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
@@ -108,9 +108,24 @@ Before you begin, ensure you have:
    ```
 
 3. **Create a Firestore database**:
+   
+   **Option 1: Using gcloud CLI**:
    ```bash
    gcloud firestore databases create --region=us-central1
    ```
+   This creates a default database with ID `(default)`.
+   
+   **Option 2: Using Google Cloud Console**:
+   - Go to [Firestore in the Google Cloud Console](https://console.cloud.google.com/firestore)
+   - Click "Create Database"
+   - Select "Native mode"
+   - Choose a location (e.g., "us-central")
+   - Optionally, you can create a database with a custom ID:
+     - Expand "Show optional settings"
+     - Enter a Database ID (e.g., "looker-portal-db")
+   - Click "Create"
+   
+   > **Note**: If you create a database with a custom ID, make sure to use this ID in your environment variables as `FIRESTORE_DATABASE_ID`.
 
 ### Looker Configuration
 
@@ -158,7 +173,11 @@ Before you begin, ensure you have:
    LOOKER_HOST=your-looker-instance.cloud.looker.com
    LOOKER_EMBED_SECRET=your_looker_embed_secret_here
    USE_MOCK_LOOKER=false
+   GOOGLE_CLOUD_PROJECT=your-gcp-project-id
+   FIRESTORE_DATABASE_ID=your-firestore-database-id
    ```
+   
+   > **Important**: The `GOOGLE_CLOUD_PROJECT` should be your GCP project ID (e.g., `looker-portal`), and the `FIRESTORE_DATABASE_ID` should be the name of your Firestore database (e.g., `looker-portal-db` or `(default)` if you didn't specify a custom name).
 
 4. **Set up Looker SDK configuration**:
    Create a `looker.ini` file in the backend directory:
@@ -180,7 +199,34 @@ Before you begin, ensure you have:
    VITE_APP_NAME_LOWER="looker-portal"
    ```
 
-6. **Start the development servers**:
+6. **Verify Google Cloud authentication**:
+   ```bash
+   # Authenticate with Google Cloud (required for Firestore access)
+   gcloud auth application-default login
+   
+   # Verify authentication and project configuration
+   gcloud config list
+   ```
+   
+   If you prefer to use a service account:
+   ```bash
+   # Create a service account (if needed)
+   gcloud iam service-accounts create looker-portal-dev
+   
+   # Grant Firestore permissions
+   gcloud projects add-iam-policy-binding your-project-id \
+     --member="serviceAccount:looker-portal-dev@your-project-id.iam.gserviceaccount.com" \
+     --role="roles/datastore.user"
+   
+   # Create and download a key
+   gcloud iam service-accounts keys create ./service-account-key.json \
+     --iam-account=looker-portal-dev@your-project-id.iam.gserviceaccount.com
+   
+   # Add the path to your .env file
+   # GOOGLE_APPLICATION_CREDENTIALS=/full/path/to/service-account-key.json
+   ```
+
+7. **Start the development servers**:
    ```bash
    # In the root directory
    npm run dev
@@ -197,6 +243,8 @@ Before you can use the application, you need to initialize the database with an 
    cd backend
    node initialize-db.js
    ```
+   
+   > **Important**: Before running this script, make sure you have set the `GOOGLE_CLOUD_PROJECT` and `FIRESTORE_DATABASE_ID` environment variables correctly in your `.env` file. If you run the script and see `"Attempting to connect to Firestore database 'undefined' in project: undefined"`, it means these variables are not properly set.
 
    This script will:
    - Create an initial admin business partner
@@ -210,9 +258,21 @@ Before you can use the application, you need to initialize the database with an 
 2. **Verify initialization**:
    Check the console output to ensure the script executed successfully. You should see output similar to:
    ```
+   Attempting to connect to Firestore database 'looker-portal-db' in project: looker-portal
    Created business partner with ID: [partner-id]
    Created admin user with ID: [user-id]
    Database initialized successfully!
+   ```
+   
+   If you encounter permission issues, ensure that:
+   
+   - You're authenticated with Google Cloud (`gcloud auth application-default login`)
+   - The account you're using has Firestore Admin permissions
+   - Your project ID is correct
+   
+   For local development with emulators or alternative authentication, you can also set:
+   ```
+   GOOGLE_APPLICATION_CREDENTIALS=/path/to/your/service-account-key.json
    ```
 
 ### Production Deployment
@@ -291,6 +351,9 @@ After logging in as a regular user:
 4. **Database Connection Issues**:
    - Ensure you have the correct permissions for Firestore
    - Verify that the database exists in the specified region
+   - Check that your environment variables include `GOOGLE_CLOUD_PROJECT` and `FIRESTORE_DATABASE_ID`
+   - For local development, verify you're authenticated with `gcloud auth application-default login`
+   - If using a custom database ID, make sure it matches exactly what you created in the console
 
 ### Debugging
 
