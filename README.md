@@ -1,6 +1,6 @@
-# Looker Partner Portal
+# Looker Portal
 
-A secure, customizable web application that enables business partners to access Looker dashboards without direct Looker access.
+A customizable web application with RBAC and JWT authentication controls that enables secure external access to Looker dashboards hosted on a private Looker instance via Looker embed URLs.
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
@@ -23,7 +23,7 @@ A secure, customizable web application that enables business partners to access 
 
 ## 🔍 Overview
 
-The Looker Partner Portal is a web application that provides a secure way for organizations to share Looker dashboards with their business partners without giving them direct access to Looker. The application uses Looker's embedding capabilities to display dashboards within a custom interface, with role-based access control and easy dashboard assignment to specific business partners.
+The Looker Portal is a web application that provides a secure way for organizations to share Looker dashboards with their business partners without giving them direct access to their private Looker instance. The application uses Looker's embedding capabilities to display dashboards within a custom interface, with role-based access control and easy dashboard assignment to specific business partners.
 
 The portal consists of a React frontend and a Node.js backend, using Firestore for data storage and Looker's embedding capabilities for dashboard visualization.
 
@@ -36,7 +36,6 @@ The portal consists of a React frontend and a Node.js backend, using Firestore f
 - **Dashboard Assignment**: Assign specific Looker dashboards to business partners
 - **Dashboard Viewing**: Users can view dashboards assigned to their business partner
 - **Export Options**: Export dashboards as Excel or PDF
-- **Mock Mode**: Run the application with mock data without Looker integration for testing
 
 ## 🏛️ Architecture
 
