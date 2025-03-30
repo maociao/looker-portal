@@ -29,10 +29,21 @@ export const loginUser = async (email, password) => {
     const response = await api.post('/api/login', { email, password });
     return response.data;
   } catch (error) {
-    handleApiError(error);
-    throw new Error(
-      error.response?.data?.message || 'Failed to login'
-    );
+    console.error('Login error:', error);
+    
+    // Provide detailed error information
+    if (error.response) {
+      // The request was made and the server responded with a status code
+      // that falls out of the range of 2xx
+      const errorMessage = error.response.data?.message || 'Authentication failed';
+      throw new Error(errorMessage);
+    } else if (error.request) {
+      // The request was made but no response was received
+      throw new Error('No response from server. Please check your connection.');
+    } else {
+      // Something happened in setting up the request that triggered an Error
+      throw new Error(error.message || 'An unexpected error occurred');
+    }
   }
 };
 
@@ -121,10 +132,12 @@ export const createUser = async (userData, token) => {
     });
     return response.data;
   } catch (error) {
+    console.error('Create user error:', error);
+    if (error.response && error.response.data) {
+      throw new Error(error.response.data.message || 'Failed to create user');
+    }
     handleApiError(error);
-    throw new Error(
-      error.response?.data?.message || 'Failed to create user'
-    );
+    throw new Error('Failed to create user');
   }
 };
 
@@ -137,10 +150,12 @@ export const updateUser = async (userId, userData, token) => {
     });
     return response.data;
   } catch (error) {
+    console.error('Update user error:', error);
+    if (error.response && error.response.data) {
+      throw new Error(error.response.data.message || 'Failed to update user');
+    }
     handleApiError(error);
-    throw new Error(
-      error.response?.data?.message || 'Failed to update user'
-    );
+    throw new Error('Failed to update user');
   }
 };
 

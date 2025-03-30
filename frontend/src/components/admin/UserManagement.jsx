@@ -1,6 +1,7 @@
 import React, { useState, useContext } from 'react';
 import { AuthContext } from '../../context/AuthContext';
 import { createUser, updateUser, deleteUser } from '../../services/api';
+import PasswordField from "@/components/PasswordField";
 
 // shadcn components
 import { Button } from "@/components/ui/button";
@@ -57,11 +58,11 @@ const UserManagement = ({ users, partners, isLoading, refreshData }) => {
     businessPartnerId: '',
   });
   const { toast } = useToast();
-  
+
   // Delete alert state
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
-  
+
   const resetForm = () => {
     setFormData({
       firstName: '',
@@ -73,7 +74,7 @@ const UserManagement = ({ users, partners, isLoading, refreshData }) => {
     });
     setSelectedUser(null);
   };
-  
+
   const handleOpenDialog = (user = null) => {
     if (user) {
       setSelectedUser(user);
@@ -90,12 +91,12 @@ const UserManagement = ({ users, partners, isLoading, refreshData }) => {
     }
     setIsDialogOpen(true);
   };
-  
+
   const handleCloseDialog = () => {
     resetForm();
     setIsDialogOpen(false);
   };
-  
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -103,23 +104,48 @@ const UserManagement = ({ users, partners, isLoading, refreshData }) => {
       [name]: value,
     }));
   };
-  
+
   const handleSelectChange = (name, value) => {
     setFormData(prev => ({
       ...prev,
       [name]: value,
     }));
   };
-  
+
   const handleSubmit = async () => {
     try {
+      // Client-side validation for password
+      if (!selectedUser && formData.password) {
+        // Only validate password for new users or when changing password
+        const passwordValidation = validatePassword(formData.password);
+        if (!passwordValidation.valid) {
+          toast({
+            title: 'Password Error',
+            description: passwordValidation.message,
+            variant: 'destructive',
+          });
+          return;
+        }
+      }
+
       if (selectedUser) {
         // Update existing user
         const userData = { ...formData };
         if (!userData.password) {
           delete userData.password; // Don't update password if empty
+        } else {
+          // Validate password when updating too
+          const passwordValidation = validatePassword(userData.password);
+          if (!passwordValidation.valid) {
+            toast({
+              title: 'Password Error',
+              description: passwordValidation.message,
+              variant: 'destructive',
+            });
+            return;
+          }
         }
-        
+
         await updateUser(selectedUser.id, userData, token);
         toast({
           title: 'Success',
@@ -133,23 +159,64 @@ const UserManagement = ({ users, partners, isLoading, refreshData }) => {
           description: 'User created successfully',
         });
       }
-      
+
       handleCloseDialog();
       refreshData();
     } catch (error) {
+      console.error('Error:', error);
+
+      // Extract detailed error message if available
+      let errorMessage = 'An error occurred';
+
+      if (error.response && error.response.data) {
+        if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.response.data.errors && error.response.data.errors.length > 0) {
+          // Handle validation errors array if present
+          errorMessage = error.response.data.errors.map(err => err.msg).join(', ');
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
       toast({
         title: 'Error',
-        description: error.message || 'An error occurred',
+        description: errorMessage,
         variant: 'destructive',
       });
     }
   };
-  
+
+  // Add this password validation helper function to the component
+  const validatePassword = (password) => {
+    if (!password || password.length < 10) {
+      return { valid: false, message: 'Password must be at least 10 characters long' };
+    }
+
+    if (!/[A-Z]/.test(password)) {
+      return { valid: false, message: 'Password must contain at least one uppercase letter' };
+    }
+
+    if (!/[a-z]/.test(password)) {
+      return { valid: false, message: 'Password must contain at least one lowercase letter' };
+    }
+
+    if (!/[0-9]/.test(password)) {
+      return { valid: false, message: 'Password must contain at least one number' };
+    }
+
+    if (!/[^A-Za-z0-9]/.test(password)) {
+      return { valid: false, message: 'Password must contain at least one special character' };
+    }
+
+    return { valid: true };
+  };
+
   const handleDeleteClick = (user) => {
     setUserToDelete(user);
     setIsDeleteAlertOpen(true);
   };
-  
+
   const handleDeleteConfirm = async () => {
     try {
       await deleteUser(userToDelete.id, token);
@@ -167,7 +234,7 @@ const UserManagement = ({ users, partners, isLoading, refreshData }) => {
       });
     }
   };
-  
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -176,7 +243,7 @@ const UserManagement = ({ users, partners, isLoading, refreshData }) => {
           <Plus size={16} /> Add User
         </Button>
       </div>
-      
+
       {users.length === 0 ? (
         <p className="text-sm text-gray-500">No users found</p>
       ) : (
@@ -202,15 +269,15 @@ const UserManagement = ({ users, partners, isLoading, refreshData }) => {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Button 
-                        variant="ghost" 
+                      <Button
+                        variant="ghost"
                         size="icon"
                         onClick={() => handleOpenDialog(user)}
                       >
                         <Pencil size={16} />
                       </Button>
-                      <Button 
-                        variant="ghost" 
+                      <Button
+                        variant="ghost"
                         size="icon"
                         className="text-red-500 hover:text-red-700 hover:bg-red-50"
                         onClick={() => handleDeleteClick(user)}
@@ -225,7 +292,7 @@ const UserManagement = ({ users, partners, isLoading, refreshData }) => {
           </Table>
         </div>
       )}
-      
+
       {/* User Form Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
@@ -237,7 +304,7 @@ const UserManagement = ({ users, partners, isLoading, refreshData }) => {
               Fill in the form below to {selectedUser ? 'update' : 'create'} a user.
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -250,7 +317,7 @@ const UserManagement = ({ users, partners, isLoading, refreshData }) => {
                   required
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="lastName">Last Name</Label>
                 <Input
@@ -262,7 +329,7 @@ const UserManagement = ({ users, partners, isLoading, refreshData }) => {
                 />
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -274,25 +341,20 @@ const UserManagement = ({ users, partners, isLoading, refreshData }) => {
                 required
               />
             </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="password">
-                {selectedUser ? 'Password (leave empty to keep current)' : 'Password'}
-              </Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                value={formData.password}
-                onChange={handleInputChange}
-                required={!selectedUser}
-              />
-            </div>
-            
+
+            <PasswordField
+              id="password"
+              name="password"
+              label={selectedUser ? 'Password (leave empty to keep current)' : 'Password'}
+              value={formData.password}
+              onChange={handleInputChange}
+              required={!selectedUser}
+              showRequirements={!!formData.password} // Only show requirements when there's input
+            />
             <div className="space-y-2">
               <Label htmlFor="role">Role</Label>
-              <Select 
-                value={formData.role} 
+              <Select
+                value={formData.role}
                 onValueChange={(value) => handleSelectChange('role', value)}
               >
                 <SelectTrigger>
@@ -304,11 +366,11 @@ const UserManagement = ({ users, partners, isLoading, refreshData }) => {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="businessPartnerId">Business Partner</Label>
-              <Select 
-                value={formData.businessPartnerId} 
+              <Select
+                value={formData.businessPartnerId}
                 onValueChange={(value) => handleSelectChange('businessPartnerId', value)}
               >
                 <SelectTrigger>
@@ -324,7 +386,7 @@ const UserManagement = ({ users, partners, isLoading, refreshData }) => {
               </Select>
             </div>
           </div>
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={handleCloseDialog}>
               Cancel
@@ -335,7 +397,7 @@ const UserManagement = ({ users, partners, isLoading, refreshData }) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
+
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
         <AlertDialogContent>

@@ -71,13 +71,14 @@ export const loginUser = async (email, password) => {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
       const user = mockUsers.find(u => u.email === email);
-      
+
       if (user && (password === 'password' || password === 'admin')) {
         // Find the business partner to get their assigned dashboards
         const partner = mockPartners.find(p => p.id === user.businessPartnerId);
-        
+
         resolve({
           token: 'mock-jwt-token-' + uuidv4(),
+          refreshToken: 'mock-refresh-token-' + uuidv4(),
           user: {
             id: user.id,
             email: user.email,
@@ -136,7 +137,7 @@ export const getUserDashboards = async (token) => {
         description: dashboard.description,
         dashboardType: dashboard.dashboardType
       }));
-      
+
       resolve({ dashboards: availableDashboards });
     }, 800);
   });
@@ -159,11 +160,11 @@ export const createUser = async (userData, token) => {
         ...userData,
         createdAt: new Date().toISOString()
       };
-      
+
       // In a real app, we would add this to the database
       mockUsers.push(newUser);
-      
-      resolve({ 
+
+      resolve({
         message: 'User created successfully',
         user: newUser
       });
@@ -175,20 +176,20 @@ export const updateUser = async (userId, userData, token) => {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
       const userIndex = mockUsers.findIndex(u => u.id === userId);
-      
+
       if (userIndex === -1) {
         reject(new Error('User not found'));
         return;
       }
-      
+
       const updatedUser = {
         ...mockUsers[userIndex],
         ...userData
       };
-      
+
       mockUsers[userIndex] = updatedUser;
-      
-      resolve({ 
+
+      resolve({
         message: 'User updated successfully',
         user: updatedUser
       });
@@ -200,14 +201,14 @@ export const deleteUser = async (userId, token) => {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
       const userIndex = mockUsers.findIndex(u => u.id === userId);
-      
+
       if (userIndex === -1) {
         reject(new Error('User not found'));
         return;
       }
-      
+
       mockUsers.splice(userIndex, 1);
-      
+
       resolve({ message: 'User deleted successfully' });
     }, 800);
   });
@@ -230,10 +231,10 @@ export const createBusinessPartner = async (partnerData, token) => {
         ...partnerData,
         createdAt: new Date().toISOString()
       };
-      
+
       mockPartners.push(newPartner);
-      
-      resolve({ 
+
+      resolve({
         message: 'Business partner created successfully',
         partner: newPartner
       });
@@ -245,20 +246,20 @@ export const updateBusinessPartner = async (partnerId, partnerData, token) => {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
       const partnerIndex = mockPartners.findIndex(p => p.id === partnerId);
-      
+
       if (partnerIndex === -1) {
         reject(new Error('Business partner not found'));
         return;
       }
-      
+
       const updatedPartner = {
         ...mockPartners[partnerIndex],
         ...partnerData
       };
-      
+
       mockPartners[partnerIndex] = updatedPartner;
-      
-      resolve({ 
+
+      resolve({
         message: 'Business partner updated successfully',
         partner: updatedPartner
       });
@@ -270,14 +271,14 @@ export const deleteBusinessPartner = async (partnerId, token) => {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
       const partnerIndex = mockPartners.findIndex(p => p.id === partnerId);
-      
+
       if (partnerIndex === -1) {
         reject(new Error('Business partner not found'));
         return;
       }
-      
+
       mockPartners.splice(partnerIndex, 1);
-      
+
       resolve({ message: 'Business partner deleted successfully' });
     }, 800);
   });
@@ -296,12 +297,12 @@ export const getLookerDashboardById = async (dashboardId, token) => {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
       const dashboard = mockDashboards.find(d => d.id === dashboardId);
-      
+
       if (!dashboard) {
         reject(new Error('Dashboard not found'));
         return;
       }
-      
+
       resolve(dashboard);
     }, 800);
   });
@@ -328,7 +329,7 @@ export const downloadDashboardPdf = async (dashboardId, token) => {
 export const testLookerConnection = async (token) => {
   return new Promise((resolve) => {
     setTimeout(() => {
-      resolve({ 
+      resolve({
         status: 'connected',
         lookerUser: 'Mock Looker User',
         lookerVersion: '23.4'
