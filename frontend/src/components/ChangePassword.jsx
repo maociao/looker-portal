@@ -1,3 +1,4 @@
+// src/components/ChangePassword.jsx
 import React, { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { changePassword } from '../services/api';
@@ -75,7 +76,17 @@ const ChangePassword = ({ onClose }) => {
         setTimeout(onClose, 2000);
       }
     } catch (err) {
-      setError(err.message || 'An error occurred while changing your password');
+      console.error('Password change error:', err);
+      // Extract error message from response if available
+      let errorMessage = 'An error occurred while changing your password';
+      
+      if (err.response && err.response.data && err.response.data.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }

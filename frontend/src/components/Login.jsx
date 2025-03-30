@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
+import ErrorAlert from './ErrorAlert';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -19,6 +20,16 @@ const Login = () => {
   const { user, setUser, setToken, setRefreshToken } = useContext(AuthContext);
   const navigate = useNavigate();
 
+  const handleEmailChange = (e) => {
+    setEmail(e.target.value);
+    if (error) setError('');  // Clear error when user changes input
+  };
+
+  const handlePasswordChange = (e) => {
+    setPassword(e.target.value);
+    if (error) setError('');  // Clear error when user changes input
+  };
+
   // If already logged in, redirect to appropriate page based on role
   if (user) {
     const redirectPath = user.role === 'admin' ? '/admin' : '/dashboard';
@@ -27,21 +38,19 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
     setIsLoading(true);
-
     try {
       const response = await loginUser(email, password);
-      
+
       if (response.token && response.user) {
         localStorage.setItem('token', response.token);
         localStorage.setItem('refreshToken', response.refreshToken);
         localStorage.setItem('user', JSON.stringify(response.user));
-        
+
         setToken(response.token);
         setRefreshToken(response.refreshToken);
         setUser(response.user);
-        
+
         // Navigate based on user role
         const redirectPath = response.user.role === 'admin' ? '/admin' : '/dashboard';
         navigate(redirectPath);
@@ -49,7 +58,18 @@ const Login = () => {
         setError('Invalid response from server');
       }
     } catch (err) {
-      setError(err.message || 'An error occurred during login');
+      console.error('Login error:', err);
+
+      // Extract error message from response if available
+      let errorMessage = 'An error occurred during login';
+
+      if (err.response && err.response.data && err.response.data.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -61,13 +81,12 @@ const Login = () => {
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold">{APP_NAME}</h1>
         </div>
-        
-        {error && (
-          <Alert variant="destructive" className="mb-6">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-        
+
+        <ErrorAlert
+          error={error}
+          onDismiss={() => setError('')}
+        />
+
         <Card>
           <CardHeader>
             <CardTitle className="text-xl">Sign In</CardTitle>
@@ -80,24 +99,22 @@ const Login = () => {
                   id="email"
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={handleEmailChange}
                   required
                 />
               </div>
-              
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
                 <Input
                   id="password"
                   type="password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={handlePasswordChange}
                   required
                 />
               </div>
-              
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 className="w-full"
                 disabled={isLoading}
               >
