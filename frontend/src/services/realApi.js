@@ -92,7 +92,7 @@ export const getLookerEmbedUrl = async (token, dashboardId) => {
 // Get user's accessible dashboards
 export const getUserDashboards = async (token) => {
   try {
-    const response = await api.get('/api/looker/user-dashboards', {
+    const response = await api.get('/api/looker/dashboards', {
       headers: {
         Authorization: `Bearer ${token}`,
       },
