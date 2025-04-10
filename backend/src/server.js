@@ -15,13 +15,64 @@ const USE_MOCK_LOOKER = process.env.USE_MOCK_LOOKER === 'true' || !process.env.L
 let lookerSDK = null;
 if (!USE_MOCK_LOOKER) {
   try {
-    const { LookerNodeSDK } = require('@looker/sdk');
-    const { NodeSettingsIniFile } = require('@looker/sdk-node');
-    lookerSDK = LookerNodeSDK.init(new NodeSettingsIniFile());
-    console.log('Looker SDK initialized successfully');
+    console.log('Attempting to initialize Looker SDK...');
+    
+    // First, log available environment variables to help debug
+    console.log('LOOKER_HOST:', process.env.LOOKER_HOST || 'not set');
+    console.log('LOOKER_CLIENT_ID:', process.env.LOOKER_CLIENT_ID ? 'is set' : 'not set');
+    console.log('LOOKER_CLIENT_SECRET:', process.env.LOOKER_CLIENT_SECRET ? 'is set' : 'not set');
+    
+    const path = require('path');
+    const { LookerNodeSDK, NodeSettingsIniFile, NodeSettings } = require('@looker/sdk-node');
+    
+    let settings;
+    
+    // Try environment variables first
+    if (process.env.LOOKER_HOST && process.env.LOOKER_CLIENT_ID && process.env.LOOKER_CLIENT_SECRET) {
+      console.log('Using Looker credentials from environment variables');
+      settings = {
+        base_url: `https://${process.env.LOOKER_HOST}`,
+        client_id: process.env.LOOKER_CLIENT_ID,
+        client_secret: process.env.LOOKER_CLIENT_SECRET,
+        verify_ssl: true
+      };
+
+    } else {
+      // Try ini file approach
+      try {
+        const iniFilePath = path.join(__dirname, '../looker.ini');
+        console.log(`Looking for Looker ini file at: ${iniFilePath}`);
+        
+        settings = new NodeSettingsIniFile(iniFilePath);
+        console.log('Successfully loaded settings from ini file');
+      } catch (iniError) {
+        console.error('Error reading looker.ini file:', iniError.message);
+        throw new Error('No Looker credentials available');
+      }
+    }
+    
+    try {
+      // Initialize Looker SDK
+      lookerSDK = LookerNodeSDK.init40(settings);
+      console.log('Looker SDK initialized successfully');
+    } catch (initError) {
+      console.error('Failed to initialize Looker SDK:', initError);
+      throw new Error('Failed to initialize Looker SDK');
+    }    
+    
+    // Test connection asynchronously
+    (async () => {
+      try {
+        const me = await lookerSDK.ok(lookerSDK.me());
+        console.log(`Connected to Looker as ${me.display_name}`);
+      } catch (error) {
+        console.error('Looker connection test failed:', error);
+      }
+    })();
+      
   } catch (error) {
-    console.warn('Failed to initialize Looker SDK:', error.message);
-    console.warn('Running in mock Looker mode');
+    console.error('Failed to initialize Looker SDK:', error);
+    console.warn('Running in mock Looker mode - SDK initialization failed');
   }
 } else {
   console.log('Running without Looker SDK - using frontend mocks for Looker functionality');
@@ -31,7 +82,7 @@ if (!USE_MOCK_LOOKER) {
 const app = express();
 
 // Trust the X-Forwarded-For header from Cloud Run proxy
-app.set('trust proxy', true);
+app.set('trust proxy', 1);
 
 app.use(express.json());
 
@@ -131,7 +182,8 @@ const rateLimit = require('express-rate-limit');
 const loginLimiter = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 minutes
   max: 5, // 5 attempts per window
-  message: { message: 'Too many login attempts, please try again later' }
+  message: { message: 'Too many login attempts, please try again later' },
+  trustProxy: false,
 });
 
 // Authentication Routes

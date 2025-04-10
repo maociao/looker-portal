@@ -22,7 +22,13 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# secrets
+# Secrets and credentials
+*.ini
 *.key
 *.pem
+*.env
+!.env.example
 service-account-key.json
+# build tools
+.vscode/
+.idx/
