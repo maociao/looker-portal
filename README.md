@@ -111,9 +111,9 @@ Before you begin, ensure you have:
    
    **Option 1: Using gcloud CLI**:
    ```bash
-   gcloud firestore databases create --region=us-central1
+   gcloud firestore databases create --location=us-central1 --database=looker-portal
    ```
-   This creates a default database with ID `(default)`.
+   This creates a database with ID `looker-portal`.
    
    **Option 2: Using Google Cloud Console**:
    - Go to [Firestore in the Google Cloud Console](https://console.cloud.google.com/firestore)
@@ -195,7 +195,7 @@ Before you begin, ensure you have:
    VITE_API_URL=http://localhost:8080
    VITE_LOOKER_HOST=your-looker-instance.cloud.looker.com
    VITE_USE_MOCK_LOOKER=false
-   VITE_APP_NAME="Looker Partner Portal"
+   VITE_APP_NAME="Looker Portal"
    VITE_APP_NAME_LOWER="looker-portal"
    ```
 
@@ -284,24 +284,32 @@ The repository includes a `cloudbuild.yaml` file for deploying to Google Cloud R
 1. **Create a Cloud Build trigger**:
    ```bash
    gcloud builds triggers create github \
-     --name="looker-portal-deploy" \
-     --repo="yourusername/looker-portal" \
-     --branch-pattern="main" \
-     --build-config="cloudbuild.yaml"
+      --name="looker-portal-deploy" \
+      --repo-owner="your-github-username" \
+      --repo-name="looker-portal" \
+      --branch-pattern="main" \
+      --build-config="cloudbuild.yaml"
    ```
 
 2. **Set substitution variables**:
    Set these variables in your Cloud Build trigger:
    - `_LOOKER_HOST`: Your Looker instance URL
-   - `_LOOKER_EMBED_SECRET`: Your Looker embed secret
-   - `_JWT_SECRET`: A secure random string for JWT signing
-   - `_REFRESH_TOKEN_SECRET`: A secure random string for refresh tokens
    - `_USE_MOCK_LOOKER`: `true` or `false` depending on if you're using Looker
    - `_APP_NAME`: Display name for your app
    - `_APP_NAME_LOWER`: Lowercase, hyphenated name for resources
    - `_DEPLOY_REGION`: GCP region (e.g., `us-central1`)
 
-3. **Trigger a build**:
+3. **Create secrets in Google Secret Manager**:
+   Add the following secrets for your Cloud Build:
+   ```bash
+      gcloud secrets create looker-client-id --replication-policy="automatic" --data-file=- <<< "your_actual_client_id"
+      gcloud secrets create looker-client-secret --replication-policy="automatic" --data-file=- <<< "your_actual_client_secret"
+      gcloud secrets create looker-embed-secret --replication-policy="automatic" --data-file=- <<< "your_embed_secret"
+      gcloud secrets create jwt-secret --replication-policy="automatic" --data-file=- <<< "your_jwt_secret"
+      gcloud secrets create refresh-token-secret --replication-policy="automatic" --data-file=- <<< "your_refresh_token_secret"
+   ```
+
+4. **Trigger a build**:
    Push to your main branch or manually trigger the build.
 
 ## 📘 Usage Guide

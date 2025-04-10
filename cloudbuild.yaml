@@ -33,7 +33,8 @@ steps:
       - '--memory=512Mi'
       - '--min-instances=0'
       - '--max-instances=5'
-      - '--set-env-vars=FRONTEND_URL=https://${_APP_NAME_LOWER}-frontend-$PROJECT_NUMBER.${_DEPLOY_REGION}.run.app,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,FIRESTORE_DATABASE_ID=${_APP_NAME_LOWER},PROJECT_ID=$PROJECT_ID,JWT_SECRET=${_JWT_SECRET},USE_MOCK_LOOKER=${_USE_MOCK_LOOKER},REFRESH_TOKEN_SECRET=${_REFRESH_TOKEN_SECRET},LOOKER_HOST=${_LOOKER_HOST},LOOKER_EMBED_SECRET=${_LOOKER_EMBED_SECRET}'
+      - '--set-env-vars=FRONTEND_URL=https://${_APP_NAME_LOWER}-frontend-$PROJECT_NUMBER.${_DEPLOY_REGION}.run.app,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,FIRESTORE_DATABASE_ID=${_APP_NAME_LOWER},PROJECT_ID=$PROJECT_ID,USE_MOCK_LOOKER=${_USE_MOCK_LOOKER},LOOKER_HOST=${_LOOKER_HOST}'
+      - '--set-secrets=JWT_SECRET=jwt-secret:latest,REFRESH_TOKEN_SECRET=refresh-token-secret:latest,LOOKER_EMBED_SECRET=looker-embed-secret:latest,LOOKER_CLIENT_ID=looker-client-id:latest,LOOKER_CLIENT_SECRET=looker-client-secret:latest'
       
   # Build the frontend container image with build args
   - name: 'gcr.io/cloud-builders/docker'
@@ -99,11 +100,8 @@ images:
 # Substitution variables to be defined in the build trigger
 substitutions:
   _LOOKER_HOST: 'your-looker-instance.cloud.looker.com'
-  _LOOKER_EMBED_SECRET: 'SECRET_TO_BE_DEFINED'
-  _JWT_SECRET: 'SECRET_TO_BE_DEFINED'
-  _REFRESH_TOKEN_SECRET: 'SECRET_TO_BE_DEFINED'
-  _USE_MOCK_LOOKER: 'true'  # Toggle between 'true' and 'false'
+  _USE_MOCK_LOOKER: 'false'  # Toggle between 'true' and 'false'
   _APP_NAME: 'Looker Portal'
   _APP_NAME_LOWER: 'looker-portal'
-  _DEPLOY_REGION: 'us-central1'
+  _DEPLOY_REGION: 'europe-west1'
   _BACKEND_URL: https://${_APP_NAME_LOWER}-backend-$PROJECT_NUMBER.${_DEPLOY_REGION}.run.app
