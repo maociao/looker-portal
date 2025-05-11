@@ -129,38 +129,16 @@ export const getLookerEmbedUrl = async (token, dashboardId) => {
 export const getUserDashboards = async (token) => {
   return new Promise((resolve) => {
     setTimeout(() => {
-      // In a real app, we would extract user info from the token
-      // For our mock, we'll simulate this by checking localStorage
-      const userStr = localStorage.getItem('user');
-      let userDashboards = [...mockDashboards]; // Default to all dashboards for admin
-      
-      if (userStr) {
-        const user = JSON.parse(userStr);
-        
-        // If user is not admin, filter dashboards based on business partner assignments
-        if (user.role !== 'admin') {
-          // Find the user's business partner
-          const partner = mockPartners.find(p => p.name === user.businessPartnerName);
-          
-          // If partner exists and has assigned dashboards, filter the dashboards
-          if (partner && partner.assignedDashboards) {
-            userDashboards = mockDashboards.filter(dashboard => 
-              partner.assignedDashboards.includes(dashboard.id)
-            );
-          } else {
-            userDashboards = []; // No dashboards assigned
-          }
-        }
-      }
+      // Parse the token to get the user info (in a real app, this would be done on the server)
+      // In our mock, we'll just return all dashboards
+      const availableDashboards = mockDashboards.map(dashboard => ({
+        id: dashboard.id,
+        title: dashboard.title,
+        description: dashboard.description,
+        dashboardType: dashboard.dashboardType
+      }));
 
-      resolve({ 
-        dashboards: userDashboards.map(dashboard => ({
-          id: dashboard.id,
-          title: dashboard.title,
-          description: dashboard.description,
-          dashboardType: dashboard.dashboardType
-        }))
-      });
+      resolve({ dashboards: availableDashboards });
     }, 800);
   });
 };

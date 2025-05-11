@@ -20,8 +20,8 @@ const getEnvVar = (key, defaultValue) => {
 // Export environment variables with default values
 export const API_URL = getEnvVar('VITE_API_URL', 'http://localhost:8080');
 export const LOOKER_HOST = getEnvVar('VITE_LOOKER_HOST', 'mock.looker.com');
-export const USE_MOCK_LOOKER = getEnvVar('VITE_USE_MOCK_LOOKER', 'true') === 'true';
-export const USE_MOCK_API = getEnvVar('VITE_USE_MOCK_API', 'false') === 'true';
+export const USE_MOCK_LOOKER = getEnvVar('VITE_USE_MOCK_LOOKER', 'false');
+export const USE_MOCK_API = getEnvVar('VITE_USE_MOCK_API', 'false');
 export const APP_NAME = getEnvVar('VITE_APP_NAME', 'Looker Portal');
 export const APP_NAME_LOWER = getEnvVar('VITE_APP_NAME_LOWER', 'looker-portal');
 export const DEPLOY_REGION = getEnvVar('VITE_DEPLOY_REGION', 'us-central1');

@@ -38,13 +38,14 @@ import { useToast } from "@/components/ui/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 // Lucide icons
-import { Plus, Pencil, Trash } from 'lucide-react';
+import { Plus, Pencil, Trash, Search } from 'lucide-react';
 
 const BusinessPartnerManagement = ({ partners, isLoading, refreshData }) => {
   const { token } = useContext(AuthContext);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedPartner, setSelectedPartner] = useState(null);
   const [availableDashboards, setAvailableDashboards] = useState([]);
+  const [dashboardFilter, setDashboardFilter] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     contactEmail: '',
@@ -63,6 +64,7 @@ const BusinessPartnerManagement = ({ partners, isLoading, refreshData }) => {
       assignedDashboards: []
     });
     setSelectedPartner(null);
+    setDashboardFilter('');
   };
   
   const fetchAvailableDashboards = async () => {
@@ -174,6 +176,11 @@ const BusinessPartnerManagement = ({ partners, isLoading, refreshData }) => {
       });
     }
   };
+
+  // Filter dashboards based on search input
+  const filteredDashboards = availableDashboards.filter(dashboard => 
+    dashboard.title.toLowerCase().includes(dashboardFilter.toLowerCase())
+  );
   
   return (
     <div className="space-y-4">
@@ -271,12 +278,24 @@ const BusinessPartnerManagement = ({ partners, isLoading, refreshData }) => {
                 Select the dashboards this business partner can access
               </div>
               
+              {/* Dashboard filter input */}
+              <div className="relative mb-2">
+                <Input
+                  placeholder="Filter dashboards..."
+                  value={dashboardFilter}
+                  onChange={(e) => setDashboardFilter(e.target.value)}
+                  className="mb-2"
+                />
+              </div>
+              
               <ScrollArea className="h-48 border rounded-md p-2">
                 <div className="space-y-2">
                   {availableDashboards.length === 0 ? (
                     <p className="text-sm text-gray-500">No dashboards available</p>
+                  ) : filteredDashboards.length === 0 ? (
+                    <p className="text-sm text-gray-500">No dashboards match your filter</p>
                   ) : (
-                    availableDashboards.map(dashboard => (
+                    filteredDashboards.map(dashboard => (
                       <div key={dashboard.id} className="flex items-center space-x-2">
                         <Checkbox 
                           id={`dashboard-${dashboard.id}`}
@@ -285,7 +304,7 @@ const BusinessPartnerManagement = ({ partners, isLoading, refreshData }) => {
                         />
                         <Label 
                           htmlFor={`dashboard-${dashboard.id}`} 
-                          className="text-sm font-normal"
+                          className="text-sm font-normal cursor-pointer"
                         >
                           {dashboard.title}
                         </Label>

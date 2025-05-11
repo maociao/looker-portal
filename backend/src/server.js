@@ -7,6 +7,8 @@ const { Firestore } = require('@google-cloud/firestore');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const NodeCache = require('node-cache');
+const lookerService = require('./services/lookerService');
 
 // Check if we should use mock Looker services
 const USE_MOCK_LOOKER = process.env.USE_MOCK_LOOKER === 'true' || !process.env.LOOKER_HOST;
@@ -15,67 +17,51 @@ const USE_MOCK_LOOKER = process.env.USE_MOCK_LOOKER === 'true' || !process.env.L
 let lookerSDK = null;
 if (!USE_MOCK_LOOKER) {
   try {
-    console.log('Attempting to initialize Looker SDK...');
-    
-    // First, log available environment variables to help debug
-    console.log('LOOKER_HOST:', process.env.LOOKER_HOST || 'not set');
-    console.log('LOOKER_CLIENT_ID:', process.env.LOOKER_CLIENT_ID ? 'is set' : 'not set');
-    console.log('LOOKER_CLIENT_SECRET:', process.env.LOOKER_CLIENT_SECRET ? 'is set' : 'not set');
-    
-    const path = require('path');
-    const { LookerNodeSDK, NodeSettingsIniFile, NodeSettings } = require('@looker/sdk-node');
-    
-    let settings;
-    
-    // Try environment variables first
-    if (process.env.LOOKER_HOST && process.env.LOOKER_CLIENT_ID && process.env.LOOKER_CLIENT_SECRET) {
-      console.log('Using Looker credentials from environment variables');
-      settings = {
-        base_url: `https://${process.env.LOOKER_HOST}`,
-        client_id: process.env.LOOKER_CLIENT_ID,
-        client_secret: process.env.LOOKER_CLIENT_SECRET,
-        verify_ssl: true
-      };
-
-    } else {
-      // Try ini file approach
-      try {
-        const iniFilePath = path.join(__dirname, '../looker.ini');
-        console.log(`Looking for Looker ini file at: ${iniFilePath}`);
-        
-        settings = new NodeSettingsIniFile(iniFilePath);
-        console.log('Successfully loaded settings from ini file');
-      } catch (iniError) {
-        console.error('Error reading looker.ini file:', iniError.message);
-        throw new Error('No Looker credentials available');
-      }
-    }
-    
-    try {
-      // Initialize Looker SDK
-      lookerSDK = LookerNodeSDK.init40(settings);
+    // Initialize the service when server starts
+    lookerService.initialize().then(sdk => {
+      lookerSDK = sdk;
       console.log('Looker SDK initialized successfully');
-    } catch (initError) {
-      console.error('Failed to initialize Looker SDK:', initError);
-      throw new Error('Failed to initialize Looker SDK');
-    }    
-    
-    // Test connection asynchronously
-    (async () => {
-      try {
-        const me = await lookerSDK.ok(lookerSDK.me());
-        console.log(`Connected to Looker as ${me.display_name}`);
-      } catch (error) {
-        console.error('Looker connection test failed:', error);
-      }
-    })();
-      
+    }).catch(error => {
+      console.error('Failed to initialize Looker SDK:', error);
+    });
   } catch (error) {
-    console.error('Failed to initialize Looker SDK:', error);
-    console.warn('Running in mock Looker mode - SDK initialization failed');
+    console.error('Error setting up Looker service:', error);
   }
-} else {
-  console.log('Running without Looker SDK - using frontend mocks for Looker functionality');
+}
+
+// Create a cache instance with default TTL of 60 minutes and refresh interval of 30 minutes
+const DASHBOARD_CACHE_TTL = parseInt(process.env.DASHBOARD_CACHE_TTL || '3600', 10);
+const CACHE_REFRESH_INTERVAL = parseInt(process.env.CACHE_REFRESH_INTERVAL || '1800000', 10);
+
+const dashboardCache = new NodeCache({ stdTTL: DASHBOARD_CACHE_TTL, checkperiod: 120 });
+const DASHBOARD_CACHE_KEY = 'all_dashboards';
+let cacheUpdateInProgress = false;
+
+// Function to update dashboard cache
+async function updateDashboardCache() {
+  // Prevent multiple simultaneous update requests
+  if (cacheUpdateInProgress) return;
+
+  cacheUpdateInProgress = true;
+  try {
+    console.log('Updating dashboard cache...');
+    const dashboards = await lookerSDK.ok(lookerSDK.all_dashboards());
+    dashboardCache.set(DASHBOARD_CACHE_KEY, dashboards);
+    console.log(`Dashboard cache updated with ${dashboards.length} dashboards`);
+  } catch (error) {
+    console.error('Error updating dashboard cache:', error);
+  } finally {
+    cacheUpdateInProgress = false;
+  }
+}
+
+// Set up a timer to periodically refresh the dashboard cache
+if (lookerSDK) {
+  setInterval(() => {
+    updateDashboardCache().catch(err => {
+      console.error('Scheduled dashboard cache refresh failed:', err);
+    });
+  }, CACHE_REFRESH_INTERVAL);
 }
 
 // Initialize Express app
@@ -90,10 +76,10 @@ app.use(express.json());
 const allowedOrigins = process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : ['*'];
 console.log('Allowed CORS origins:', allowedOrigins);
 app.use(cors({
-  origin: function(origin, callback) {
+  origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps, curl requests)
     if (!origin) return callback(null, true);
-    
+
     // Check if origin is allowed or if we're allowing any origin
     if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
       callback(null, true);
@@ -227,7 +213,7 @@ app.post('/api/login', loginLimiter, async (req, res) => {
     if (userData.accountLocked && userData.lockExpiration > new Date()) {
       return res.status(401).json({ message: 'Account locked. Please try again later.' });
     }
-    
+
     // Reset failed attempts on successful login
     await usersCollection.doc(userId).update({
       failedLoginAttempts: 0,
@@ -247,6 +233,8 @@ app.post('/api/login', loginLimiter, async (req, res) => {
     const token = jwt.sign({
       userId,
       email: userData.email,
+      firstName: userData.firstName,
+      lastName: userData.lastName,
       role: userData.role,
       businessPartnerId: userData.businessPartnerId,
       businessPartnerName: businessPartnerData.name
@@ -314,6 +302,8 @@ app.post('/api/refresh-token', async (req, res) => {
       const token = jwt.sign({
         userId: decoded.userId,
         email: userData.email,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
         role: userData.role,
         businessPartnerId: userData.businessPartnerId,
         businessPartnerName: businessPartnerData.name
@@ -343,19 +333,19 @@ app.post('/api/change-password', authenticateToken, async (req, res) => {
     if (newPassword.length < 10) {
       return res.status(400).json({ message: 'Password must be at least 10 characters long' });
     }
-    
+
     if (!/[A-Z]/.test(newPassword)) {
       return res.status(400).json({ message: 'Password must contain at least one uppercase letter' });
     }
-    
+
     if (!/[a-z]/.test(newPassword)) {
       return res.status(400).json({ message: 'Password must contain at least one lowercase letter' });
     }
-    
+
     if (!/[0-9]/.test(newPassword)) {
       return res.status(400).json({ message: 'Password must contain at least one number' });
     }
-    
+
     if (!/[^A-Za-z0-9]/.test(newPassword)) {
       return res.status(400).json({ message: 'Password must contain at least one special character' });
     }
@@ -393,45 +383,119 @@ app.post('/api/change-password', authenticateToken, async (req, res) => {
 // Looker Embedding Route
 app.get('/api/looker/embed', authenticateToken, async (req, res) => {
   try {
-    const { userId, businessPartnerId } = req.user;
+    const { userId, role, firstName, lastName, businessPartnerId } = req.user;
+    
+    // For non-admin users, verify they have access to this dashboard
+    let assignedDashboards = [];
+    if (role !== 'admin') {
+      // Get business partner's assigned dashboards
+      const businessPartnerSnapshot = await businessPartnersCollection.doc(businessPartnerId).get();
+      if (!businessPartnerSnapshot.exists) {
+        return res.status(404).json({ message: 'Business partner not found' });
+      }
 
-    // Get business partner's assigned dashboards
-    const businessPartnerSnapshot = await businessPartnersCollection.doc(businessPartnerId).get();
-    if (!businessPartnerSnapshot.exists) {
-      return res.status(404).json({ message: 'Business partner not found' });
+      const businessPartner = businessPartnerSnapshot.data();
+      assignedDashboards = businessPartner.assignedDashboards || [];
+
+      if (assignedDashboards.length === 0) {
+        return res.status(404).json({ message: 'No dashboards assigned to this business partner' });
+      }
     }
 
-    const businessPartner = businessPartnerSnapshot.data();
-    const assignedDashboards = businessPartner.assignedDashboards || [];
-
-    if (assignedDashboards.length === 0) {
-      return res.status(404).json({ message: 'No dashboards assigned to this business partner' });
+    // Get the dashboard ID from the query parameter or use the first dashboard
+    const dashboardId = req.query.dashboardId || (assignedDashboards.length > 0 ? assignedDashboards[0] : null);
+    
+    if (!dashboardId) {
+      return res.status(400).json({ message: 'Dashboard ID is required' });
     }
 
-    // Get the first dashboard (you can modify this to return multiple)
-    const dashboardId = assignedDashboards[0];
+    // Get frontend domain for embedding
+    const frontendDomain = process.env.FRONTEND_URL || 'http://localhost:5173';
+    
+    // Helper function to force Unicode encoding (same as in the sample code)
+    function forceUnicodeEncoding(string) {
+      return decodeURIComponent(encodeURIComponent(string));
+    }
+    
+    // Generate a random nonce
+    function nonce(length) {
+      const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      let text = '';
+      for (let i = 0; i < length; i++) {
+        text += possible.charAt(Math.floor(Math.random() * possible.length));
+      }
+      return text;
+    }
 
-    // Generate the signed URL for Looker SSO embedding
-    const url = `/embed/dashboards/${dashboardId}`;
-    const sessionLength = 3600;
-    const timestamp = Math.floor(Date.now() / 1000);
-    const nonce = crypto.randomBytes(16).toString('hex');
-
-    // Construct the string to be signed
-    const strToSign = `${url}\n${sessionLength}\n${timestamp}\n${nonce}`;
-
-    // Create signature
+    // Build option parameters exactly as in the static HTML tool
+    const host = LOOKER_HOST;
+    const embed_path = `/embed/dashboards/${dashboardId}?embed_domain=${frontendDomain}`;
+    const permissions = ["access_data", "see_looks", "see_user_dashboards", "see_lookml_dashboards"];
+    const models = ["maastricht"];
+    
+    // Create JSON strings for each parameter - EXACTLY as in the sample code
+    const json_external_user_id = JSON.stringify(userId);
+    const json_first_name = JSON.stringify(firstName);
+    const json_last_name = JSON.stringify(lastName);
+    const json_permissions = JSON.stringify(permissions);
+    const json_models = JSON.stringify(models);
+    const json_group_ids = JSON.stringify([]);
+    const json_external_group_id = JSON.stringify("");
+    const json_user_attributes = JSON.stringify({});
+    const json_access_filters = JSON.stringify({});
+    const json_session_length = JSON.stringify(600);
+    const json_force_logout_login = JSON.stringify(true);
+    
+    // Compute time and nonce
+    const json_time = JSON.stringify(Math.floor(Date.now() / 1000));
+    const json_nonce = JSON.stringify(nonce(16));
+    
+    // URL encode the embed path for the string to sign
+    const encoded_embed_path = '/login/embed/' + encodeURIComponent(embed_path);
+    
+    // Build the string to sign - ORDER IS IMPORTANT
+    let string_to_sign = "";
+    string_to_sign += host + "\n";
+    string_to_sign += encoded_embed_path + "\n";
+    string_to_sign += json_nonce + "\n";
+    string_to_sign += json_time + "\n";
+    string_to_sign += json_session_length + "\n";
+    string_to_sign += json_external_user_id + "\n";
+    string_to_sign += json_permissions + "\n";
+    string_to_sign += json_models + "\n";
+    string_to_sign += json_group_ids + "\n";
+    string_to_sign += json_external_group_id + "\n";
+    string_to_sign += json_user_attributes + "\n";
+    string_to_sign += json_access_filters;
+    
+    // Create the signature using the same approach as the static HTML tool
     const signature = crypto
       .createHmac('sha1', LOOKER_EMBED_SECRET)
-      .update(strToSign)
+      .update(forceUnicodeEncoding(string_to_sign))
       .digest('base64')
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/g, '');
+      .trim();
+    
+    // Build the query parameters - maintaining exact order
+    const query_params = [
+      `nonce=${encodeURIComponent(json_nonce)}`,
+      `time=${encodeURIComponent(json_time)}`,
+      `session_length=${encodeURIComponent(json_session_length)}`,
+      `external_user_id=${encodeURIComponent(json_external_user_id)}`,
+      `permissions=${encodeURIComponent(json_permissions)}`,
+      `models=${encodeURIComponent(json_models)}`,
+      `group_ids=${encodeURIComponent(json_group_ids)}`,
+      `external_group_id=${encodeURIComponent(json_external_group_id)}`,
+      `user_attributes=${encodeURIComponent(json_user_attributes)}`,
+      `access_filters=${encodeURIComponent(json_access_filters)}`,
+      `first_name=${encodeURIComponent(json_first_name)}`,
+      `last_name=${encodeURIComponent(json_last_name)}`,
+      `force_logout_login=${encodeURIComponent(json_force_logout_login)}`,
+      `signature=${encodeURIComponent(signature)}`
+    ].join('&');
 
-    // Assemble the signed URL
-    const embeddedUrl = `https://${LOOKER_HOST}${url}?session_length=${sessionLength}&external_user_id=${userId}&timestamp=${timestamp}&nonce=${nonce}&signature=${signature}`;
-
+    // Create the final URL
+    const embeddedUrl = `https://${host}/login/embed/${encodeURIComponent(embed_path)}?${query_params}`;
+    
     res.json({ embeddedUrl });
   } catch (error) {
     console.error('Looker embed error:', error);
@@ -780,12 +844,32 @@ app.get('/api/looker/dashboards', authenticateToken, async (req, res) => {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
-    // Query Looker API for dashboards
-    const result = await lookerSDK.ok(lookerSDK.all_dashboards());
+    // Get dashboards from cache if available
+    let dashboards = dashboardCache.get(DASHBOARD_CACHE_KEY);
+
+    // If cache is empty or expired, get from Looker and trigger background update
+    if (!dashboards) {
+      console.log('Cache miss for dashboards, fetching from Looker...');
+      try {
+        dashboards = await lookerSDK.ok(lookerSDK.all_dashboards());
+        // Store in cache
+        dashboardCache.set(DASHBOARD_CACHE_KEY, dashboards);
+      } catch (error) {
+        console.error('Error fetching dashboards directly:', error);
+        return res.status(500).json({ message: 'Failed to fetch dashboards' });
+      }
+    } else {
+      // If cache hit, trigger background refresh to keep cache fresh
+      setTimeout(() => updateDashboardCache(), 100);
+    }
 
     // For non-admin users, filter to only show dashboards assigned to their business partner
     if (req.user.role !== 'admin') {
-      const businessPartnerSnapshot = await businessPartnersCollection.doc(req.user.businessPartnerId).get();
+      const businessPartnerId = req.user.businessPartnerId;
+
+      // Get the business partner document
+      const businessPartnerSnapshot = await businessPartnersCollection.doc(businessPartnerId).get();
+
       if (!businessPartnerSnapshot.exists) {
         return res.status(404).json({ message: 'Business partner not found' });
       }
@@ -793,20 +877,21 @@ app.get('/api/looker/dashboards', authenticateToken, async (req, res) => {
       const businessPartner = businessPartnerSnapshot.data();
       const assignedDashboards = businessPartner.assignedDashboards || [];
 
-      const filteredDashboards = result.filter(dashboard =>
+      // Filter to only include assigned dashboards
+      const filteredDashboards = dashboards.filter(dashboard =>
         assignedDashboards.includes(dashboard.id.toString())
       );
 
       return res.json({ dashboards: filteredDashboards });
     }
-
-    res.json({ dashboards: result });
+    return res.json({ dashboards });
   } catch (error) {
     console.error('Looker dashboards error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
 
+// Looker Dashboard Details Route
 app.get('/api/looker/dashboards/:id', authenticateToken, async (req, res) => {
   try {
     const dashboardId = req.params.id;

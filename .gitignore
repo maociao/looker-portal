@@ -29,6 +29,3 @@ yarn-error.log*
 *.env
 !.env.example
 service-account-key.json
-# build tools
-.vscode/
-.idx/
